@@ -1,0 +1,169 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the KONE API",
+        "description": "Use the client ID and secret of an application you created in the KONE API Portal (dev.kone.com). Sandbox and production applications both use the dev.kone.com host unless KONE has given you another.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "hostname": "API host"
+        }
+      },
+      "choose": {
+        "title": "Choose buildings",
+        "description": "Your application can see {found} building(s). Tick the ones to add, or type building IDs (comma separated) if a building is not listed.",
+        "data": {
+          "buildings": "Buildings",
+          "manual_building_ids": "Other building IDs"
+        }
+      },
+      "building": {
+        "title": "Building {building_id}",
+        "description": "Lift groups enable lift calls and live monitoring (Elevator Call API). Equipment enables status polling (Equipment Status API). Leave either empty if your application is not subscribed to that API.",
+        "data": {
+          "name": "Name",
+          "groups": "Lift group IDs (comma separated)",
+          "terminal": "Terminal ID used for calls",
+          "kens": "Equipment to poll (ken:…)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-enter KONE credentials",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret",
+          "hostname": "API host"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "KONE rejected the client ID or secret.",
+      "cannot_connect": "Could not reach the KONE API.",
+      "no_buildings": "Choose at least one building.",
+      "nothing_selected": "Add at least one lift group or one piece of equipment.",
+      "scope_refused": "KONE refused access to one of the chosen groups or equipment. Check that your application has been granted them in the API Portal."
+    },
+    "abort": {
+      "already_configured": "This KONE application is already set up.",
+      "cannot_connect": "Could not reach the KONE API.",
+      "reauth_successful": "Credentials updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "KONE options",
+        "menu_options": {
+          "add_building": "Add a building",
+          "edit_building": "Edit a building",
+          "remove_building": "Remove buildings",
+          "settings": "Settings"
+        }
+      },
+      "add_building": {
+        "title": "Add a building",
+        "data": {
+          "buildings": "Buildings",
+          "manual_building_ids": "Other building IDs"
+        }
+      },
+      "building": {
+        "title": "Building {building_id}",
+        "data": {
+          "name": "Name",
+          "groups": "Lift group IDs (comma separated)",
+          "terminal": "Terminal ID used for calls",
+          "kens": "Equipment to poll (ken:…)"
+        }
+      },
+      "edit_building": {
+        "title": "Edit a building",
+        "data": {"buildings": "Building"}
+      },
+      "remove_building": {
+        "title": "Remove buildings",
+        "data": {"buildings": "Buildings"}
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "scan_interval": "Equipment status poll interval",
+          "monitoring": "Live lift monitoring",
+          "service_info": "Poll service orders (Service Info API)"
+        }
+      }
+    },
+    "error": {
+      "no_buildings": "Choose at least one building.",
+      "nothing_selected": "Add at least one lift group or one piece of equipment.",
+      "scope_refused": "KONE refused access to one of the chosen groups or equipment.",
+      "cannot_connect": "Could not reach the KONE API."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "floor": {"name": "Floor"},
+      "direction": {
+        "name": "Direction",
+        "state": {"up": "Up", "down": "Down", "none": "Stopped"}
+      },
+      "motion": {"name": "Motion"},
+      "mode": {"name": "Mode"},
+      "last_call": {"name": "Last call"},
+      "availability": {"name": "Availability"},
+      "maintenance": {"name": "Maintenance"},
+      "service_orders": {"name": "Service orders"}
+    },
+    "binary_sensor": {
+      "door": {"name": "Door"},
+      "fault": {"name": "Fault"},
+      "connected": {"name": "Connected"},
+      "entrapment": {"name": "Entrapment"},
+      "out_of_order": {"name": "Out of order"}
+    },
+    "select": {
+      "from_floor": {"name": "From floor"},
+      "to_floor": {"name": "To floor"}
+    },
+    "button": {
+      "call": {"name": "Call lift"},
+      "cancel_call": {"name": "Cancel call"},
+      "refresh_topology": {"name": "Refresh floors"}
+    }
+  },
+  "services": {
+    "call_lift": {
+      "name": "Call lift",
+      "description": "Place a lift call through the KONE Elevator Call API.",
+      "fields": {
+        "device_id": {"name": "Lift group", "description": "The lift group device. Or give building_id and group_id."},
+        "building_id": {"name": "Building ID", "description": "KONE building ID."},
+        "group_id": {"name": "Group ID", "description": "Lift group ID within the building."},
+        "from_floor": {"name": "From floor", "description": "Floor label as on the lift buttons (e.g. G) or an area ID."},
+        "to_floor": {"name": "To floor", "description": "Destination floor label or area ID. Leave empty for a landing call."},
+        "action": {"name": "Action", "description": "KONE call action code. 2 is a destination call; the group's Last call sensor lists the site's actions."},
+        "terminal": {"name": "Terminal", "description": "Terminal ID; defaults to the building's configured terminal."}
+      }
+    },
+    "cancel_call": {
+      "name": "Cancel call",
+      "description": "Cancel a lift call. Defaults to the group's last call.",
+      "fields": {
+        "device_id": {"name": "Lift group", "description": "The lift group device."},
+        "building_id": {"name": "Building ID", "description": "KONE building ID."},
+        "group_id": {"name": "Group ID", "description": "Lift group ID."},
+        "session_id": {"name": "Session ID", "description": "Session ID returned by call_lift."}
+      }
+    },
+    "refresh_topology": {
+      "name": "Refresh floors",
+      "description": "Fetch the group's lifts and floors from KONE again.",
+      "fields": {
+        "device_id": {"name": "Lift group", "description": "The lift group device."},
+        "building_id": {"name": "Building ID", "description": "KONE building ID."},
+        "group_id": {"name": "Group ID", "description": "Lift group ID."}
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+call_lift:
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: kone
+    building_id:
+      example: "9990000951"
+      selector:
+        text:
+    group_id:
+      example: "1"
+      selector:
+        text:
+    from_floor:
+      required: true
+      example: "G"
+      selector:
+        text:
+    to_floor:
+      example: "5"
+      selector:
+        text:
+    action:
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 65535
+          mode: box
+    terminal:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          mode: box
+
+cancel_call:
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: kone
+    building_id:
+      selector:
+        text:
+    group_id:
+      selector:
+        text:
+    session_id:
+      selector:
+        number:
+          min: 1
+          max: 2147483647
+          mode: box
+
+refresh_topology:
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: kone
+    building_id:
+      selector:
+        text:
+    group_id:
+      selector:
+        text:

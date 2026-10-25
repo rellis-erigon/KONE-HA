@@ -1,0 +1,14 @@
+{
+  "domain": "kone",
+  "name": "KONE Elevators",
+  "codeowners": [
+    "@rellis-erigon"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/rellis-erigon/KONE-HA",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/rellis-erigon/KONE-HA/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
