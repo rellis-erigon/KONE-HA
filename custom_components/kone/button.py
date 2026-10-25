@@ -20,11 +20,10 @@ async def async_setup_entry(
     hub = entry.runtime_data
     entities: list[ButtonEntity] = []
     for group in hub.groups.values():
-        entities += [
-            CallButton(hub, group),
-            CancelButton(hub, group),
-            RefreshButton(hub, group),
-        ]
+        entities.append(RefreshButton(hub, group))
+        # Read-only connections get no buttons that move lifts at all.
+        if hub.allow_control:
+            entities += [CallButton(hub, group), CancelButton(hub, group)]
     async_add_entities(entities)
 
 

@@ -29,3 +29,7 @@ class KoneRequestError(KoneError):
 
 class KoneTimeout(KoneError):
     """A WebSocket request got no answer in time."""
+
+
+class KoneControlDisabled(KoneError):
+    """A lift call or cancel was attempted on a read-only client."""

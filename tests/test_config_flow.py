@@ -42,6 +42,10 @@ async def test_full_flow(hass: HomeAssistant, kone) -> None:
     assert result["options"][OPT_BUILDINGS][BUILDING]["groups"] == ["1"]
     assert result["options"][OPT_BUILDINGS][BUILDING]["kens"] == [KEN]
     assert "client_secret" in result["data"]
+    # Read-only unless the user ticks the box, and the flag is an option,
+    # not stored with the credentials.
+    assert result["options"]["allow_control"] is False
+    assert "allow_control" not in result["data"]
 
 
 async def test_bad_credentials(hass: HomeAssistant, kone) -> None:
@@ -101,3 +105,21 @@ async def test_options_add_and_remove_building(hass: HomeAssistant, kone, make_e
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert list(entry.options[OPT_BUILDINGS]) == [BUILDING]
+
+
+async def test_control_can_be_enabled_at_setup(hass: HomeAssistant, kone) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET,
+         "hostname": kone.url, "allow_control": True},
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"buildings": [BUILDING], "manual_building_ids": ""}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"name": "HQ", "groups": "1", "terminal": 1, "kens": []}
+    )
+    assert result["options"]["allow_control"] is True

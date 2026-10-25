@@ -25,6 +25,7 @@ async def async_get_config_entry_diagnostics(
         },
         "scopes": list(hub.tokens.scopes),
         "websocket_connected": hub.ws.connected,
+        "allow_control": hub.allow_control,
         "groups": {
             f"{bid}/{gid}": {
                 "topology_raw": group.topology.raw,

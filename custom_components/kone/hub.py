@@ -16,7 +16,11 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    HomeAssistantError,
+    ServiceValidationError,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -51,6 +55,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TERMINAL,
     DOMAIN,
+    OPT_ALLOW_CONTROL,
     OPT_BUILDINGS,
     OPT_MONITORING,
     OPT_SCAN_INTERVAL,
@@ -120,6 +125,9 @@ class KoneHub:
         self.buildings = buildings_from_options(dict(entry.options))
         self.monitoring = entry.options.get(OPT_MONITORING, True)
         self.service_info = entry.options.get(OPT_SERVICE_INFO, False)
+        # Entries made before this option existed were never asked; they
+        # keep control rather than silently losing their buttons.
+        self.allow_control = bool(entry.options.get(OPT_ALLOW_CONTROL, True))
 
         session = async_get_clientsession(hass)
         self.tokens = TokenManager(
@@ -136,6 +144,7 @@ class KoneHub:
             on_event=self._on_event,
             on_state=self._on_ws_state,
             client_name=f"ha-{entry.entry_id[:8]}",
+            read_only=not self.allow_control,
         )
         self.groups: dict[GroupKey, GroupState] = {}
         self.equipment: EquipmentCoordinator | None = None
@@ -270,6 +279,13 @@ class KoneHub:
 
     # Calls ----------------------------------------------------------------
 
+    def _require_control(self) -> None:
+        if not self.allow_control:
+            raise ServiceValidationError(
+                "Lift control is disabled for this KONE connection. "
+                "Turn on 'Allow lift control' in the integration's settings."
+            )
+
     def building_terminal(self, building_id: str) -> int:
         building = self.buildings.get(building_id)
         return building.terminal if building else DEFAULT_TERMINAL
@@ -283,6 +299,7 @@ class KoneHub:
         action: int = ACTION_DESTINATION,
         terminal: int | None = None,
     ) -> CallState:
+        self._require_control()
         group = self.groups.get((building_id, group_id))
         if group is None:
             raise HomeAssistantError(f"Group {group_id} of building {building_id} is not configured")
@@ -321,6 +338,7 @@ class KoneHub:
     async def async_cancel(
         self, building_id: str, group_id: str, session_id: int | None = None
     ) -> None:
+        self._require_control()
         group = self.groups.get((building_id, group_id))
         if session_id is None and group is not None and group.last_call:
             session_id = group.last_call.session_id

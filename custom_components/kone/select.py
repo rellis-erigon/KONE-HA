@@ -17,6 +17,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     hub = entry.runtime_data
+    if not hub.allow_control:
+        # The pickers only feed the Call button, which read-only lacks.
+        return
     async_add_entities(
         entity
         for group in hub.groups.values()

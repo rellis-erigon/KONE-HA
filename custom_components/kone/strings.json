@@ -7,7 +7,11 @@
         "data": {
           "client_id": "Client ID",
           "client_secret": "Client secret",
-          "hostname": "API host"
+          "hostname": "API host",
+          "allow_control": "Allow lift control"
+        },
+        "data_description": {
+          "allow_control": "Off: monitoring only. Nothing this integration does can call, cancel or otherwise change how a lift operates. On: adds Call/Cancel buttons and the call_lift and cancel_call actions."
         }
       },
       "choose": {
@@ -79,18 +83,26 @@
       },
       "edit_building": {
         "title": "Edit a building",
-        "data": {"buildings": "Building"}
+        "data": {
+          "buildings": "Building"
+        }
       },
       "remove_building": {
         "title": "Remove buildings",
-        "data": {"buildings": "Buildings"}
+        "data": {
+          "buildings": "Buildings"
+        }
       },
       "settings": {
         "title": "Settings",
         "data": {
           "scan_interval": "Equipment status poll interval",
           "monitoring": "Live lift monitoring",
-          "service_info": "Poll service orders (Service Info API)"
+          "service_info": "Poll service orders (Service Info API)",
+          "allow_control": "Allow lift control"
+        },
+        "data_description": {
+          "allow_control": "Off makes this connection read-only: call buttons and floor pickers are removed and lift call actions are refused."
         }
       }
     },
@@ -103,33 +115,71 @@
   },
   "entity": {
     "sensor": {
-      "floor": {"name": "Floor"},
+      "floor": {
+        "name": "Floor"
+      },
       "direction": {
         "name": "Direction",
-        "state": {"up": "Up", "down": "Down", "none": "Stopped"}
+        "state": {
+          "up": "Up",
+          "down": "Down",
+          "none": "Stopped"
+        }
       },
-      "motion": {"name": "Motion"},
-      "mode": {"name": "Mode"},
-      "last_call": {"name": "Last call"},
-      "availability": {"name": "Availability"},
-      "maintenance": {"name": "Maintenance"},
-      "service_orders": {"name": "Service orders"}
+      "motion": {
+        "name": "Motion"
+      },
+      "mode": {
+        "name": "Mode"
+      },
+      "last_call": {
+        "name": "Last call"
+      },
+      "availability": {
+        "name": "Availability"
+      },
+      "maintenance": {
+        "name": "Maintenance"
+      },
+      "service_orders": {
+        "name": "Service orders"
+      }
     },
     "binary_sensor": {
-      "door": {"name": "Door"},
-      "fault": {"name": "Fault"},
-      "connected": {"name": "Connected"},
-      "entrapment": {"name": "Entrapment"},
-      "out_of_order": {"name": "Out of order"}
+      "door": {
+        "name": "Door"
+      },
+      "fault": {
+        "name": "Fault"
+      },
+      "connected": {
+        "name": "Connected"
+      },
+      "entrapment": {
+        "name": "Entrapment"
+      },
+      "out_of_order": {
+        "name": "Out of order"
+      }
     },
     "select": {
-      "from_floor": {"name": "From floor"},
-      "to_floor": {"name": "To floor"}
+      "from_floor": {
+        "name": "From floor"
+      },
+      "to_floor": {
+        "name": "To floor"
+      }
     },
     "button": {
-      "call": {"name": "Call lift"},
-      "cancel_call": {"name": "Cancel call"},
-      "refresh_topology": {"name": "Refresh floors"}
+      "call": {
+        "name": "Call lift"
+      },
+      "cancel_call": {
+        "name": "Cancel call"
+      },
+      "refresh_topology": {
+        "name": "Refresh floors"
+      }
     }
   },
   "services": {
@@ -137,32 +187,74 @@
       "name": "Call lift",
       "description": "Place a lift call through the KONE Elevator Call API.",
       "fields": {
-        "device_id": {"name": "Lift group", "description": "The lift group device. Or give building_id and group_id."},
-        "building_id": {"name": "Building ID", "description": "KONE building ID."},
-        "group_id": {"name": "Group ID", "description": "Lift group ID within the building."},
-        "from_floor": {"name": "From floor", "description": "Floor label as on the lift buttons (e.g. G) or an area ID."},
-        "to_floor": {"name": "To floor", "description": "Destination floor label or area ID. Leave empty for a landing call."},
-        "action": {"name": "Action", "description": "KONE call action code. 2 is a destination call; the group's Last call sensor lists the site's actions."},
-        "terminal": {"name": "Terminal", "description": "Terminal ID; defaults to the building's configured terminal."}
+        "device_id": {
+          "name": "Lift group",
+          "description": "The lift group device. Or give building_id and group_id."
+        },
+        "building_id": {
+          "name": "Building ID",
+          "description": "KONE building ID."
+        },
+        "group_id": {
+          "name": "Group ID",
+          "description": "Lift group ID within the building."
+        },
+        "from_floor": {
+          "name": "From floor",
+          "description": "Floor label as on the lift buttons (e.g. G) or an area ID."
+        },
+        "to_floor": {
+          "name": "To floor",
+          "description": "Destination floor label or area ID. Leave empty for a landing call."
+        },
+        "action": {
+          "name": "Action",
+          "description": "KONE call action code. 2 is a destination call; the group's Last call sensor lists the site's actions."
+        },
+        "terminal": {
+          "name": "Terminal",
+          "description": "Terminal ID; defaults to the building's configured terminal."
+        }
       }
     },
     "cancel_call": {
       "name": "Cancel call",
       "description": "Cancel a lift call. Defaults to the group's last call.",
       "fields": {
-        "device_id": {"name": "Lift group", "description": "The lift group device."},
-        "building_id": {"name": "Building ID", "description": "KONE building ID."},
-        "group_id": {"name": "Group ID", "description": "Lift group ID."},
-        "session_id": {"name": "Session ID", "description": "Session ID returned by call_lift."}
+        "device_id": {
+          "name": "Lift group",
+          "description": "The lift group device."
+        },
+        "building_id": {
+          "name": "Building ID",
+          "description": "KONE building ID."
+        },
+        "group_id": {
+          "name": "Group ID",
+          "description": "Lift group ID."
+        },
+        "session_id": {
+          "name": "Session ID",
+          "description": "Session ID returned by call_lift."
+        }
       }
     },
     "refresh_topology": {
       "name": "Refresh floors",
       "description": "Fetch the group's lifts and floors from KONE again.",
       "fields": {
-        "device_id": {"name": "Lift group", "description": "The lift group device."},
-        "building_id": {"name": "Building ID", "description": "KONE building ID."},
-        "group_id": {"name": "Group ID", "description": "Lift group ID."}
+        "device_id": {
+          "name": "Lift group",
+          "description": "The lift group device."
+        },
+        "building_id": {
+          "name": "Building ID",
+          "description": "KONE building ID."
+        },
+        "group_id": {
+          "name": "Group ID",
+          "description": "Lift group ID."
+        }
       }
     }
   }

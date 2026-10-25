@@ -19,6 +19,7 @@ from .auth import (
 from .errors import (
     KoneAuthError,
     KoneConnectionError,
+    KoneControlDisabled,
     KoneError,
     KoneRequestError,
     KoneTimeout,
@@ -46,6 +47,7 @@ __all__ = [
     "DEFAULT_SUBTOPICS",
     "KoneAuthError",
     "KoneConnectionError",
+    "KoneControlDisabled",
     "KoneError",
     "KoneRequestError",
     "KoneRestClient",

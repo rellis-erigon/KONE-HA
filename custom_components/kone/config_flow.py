@@ -58,6 +58,7 @@ from .const import (
     DEFAULT_TERMINAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    OPT_ALLOW_CONTROL,
     OPT_BUILDINGS,
     OPT_MONITORING,
     OPT_SCAN_INTERVAL,
@@ -82,6 +83,14 @@ def _credentials_schema(defaults: Mapping[str, Any]) -> vol.Schema:
                 CONF_HOSTNAME, default=defaults.get(CONF_HOSTNAME, DEFAULT_HOSTNAME)
             ): str,
         }
+    )
+
+
+def _user_schema(defaults: Mapping[str, Any]) -> vol.Schema:
+    # Read-only unless the user opts in: a mistyped automation should not be
+    # able to move a lift in an occupied building.
+    return _credentials_schema(defaults).extend(
+        {vol.Required(OPT_ALLOW_CONTROL, default=defaults.get(OPT_ALLOW_CONTROL, False)): bool}
     )
 
 
@@ -205,6 +214,7 @@ class KoneConfigFlow(ConfigFlow, domain=DOMAIN):
         self._resources: Resources | None = None
         self._queue: list[str] = []
         self._buildings: dict[str, dict[str, Any]] = {}
+        self._allow_control = False
 
     @staticmethod
     @callback
@@ -225,11 +235,12 @@ class KoneConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.warning("KONE discovery failed: %s", err)
                 errors["base"] = "cannot_connect"
             else:
+                self._allow_control = bool(user_input.pop(OPT_ALLOW_CONTROL, False))
                 self._data = user_input
                 return await self.async_step_choose()
         return self.async_show_form(
             step_id="user",
-            data_schema=_credentials_schema(user_input or {}),
+            data_schema=_user_schema(user_input or {}),
             errors=errors,
         )
 
@@ -274,6 +285,7 @@ class KoneConfigFlow(ConfigFlow, domain=DOMAIN):
             OPT_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
             OPT_MONITORING: True,
             OPT_SERVICE_INFO: False,
+            OPT_ALLOW_CONTROL: self._allow_control,
         }
         try:
             await _check_scopes(self.hass, self._data, options)
@@ -453,6 +465,7 @@ class KoneOptionsFlow(OptionsFlow):
                 OPT_SCAN_INTERVAL: int(user_input[OPT_SCAN_INTERVAL]),
                 OPT_MONITORING: bool(user_input[OPT_MONITORING]),
                 OPT_SERVICE_INFO: bool(user_input[OPT_SERVICE_INFO]),
+                OPT_ALLOW_CONTROL: bool(user_input[OPT_ALLOW_CONTROL]),
             }
             try:
                 await _check_scopes(
@@ -479,6 +492,9 @@ class KoneOptionsFlow(OptionsFlow):
                     ),
                     vol.Required(OPT_MONITORING, default=options.get(OPT_MONITORING, True)): bool,
                     vol.Required(OPT_SERVICE_INFO, default=options.get(OPT_SERVICE_INFO, False)): bool,
+                    vol.Required(
+                        OPT_ALLOW_CONTROL, default=options.get(OPT_ALLOW_CONTROL, True)
+                    ): bool,
                 }
             ),
             errors=errors,

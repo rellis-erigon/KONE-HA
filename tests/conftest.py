@@ -20,6 +20,7 @@ from custom_components.kone.const import (  # noqa: E402
     CONF_CLIENT_SECRET,
     CONF_HOSTNAME,
     DOMAIN,
+    OPT_ALLOW_CONTROL,
     OPT_BUILDINGS,
     OPT_MONITORING,
     OPT_SCAN_INTERVAL,
@@ -40,7 +41,7 @@ async def kone(socket_enabled):
     await server.stop()
 
 
-def entry_options(groups=(GROUP,), kens=(KEN,)) -> dict:
+def entry_options(groups=(GROUP,), kens=(KEN,), allow_control=True) -> dict:
     return {
         OPT_BUILDINGS: {
             BUILDING: {
@@ -53,6 +54,7 @@ def entry_options(groups=(GROUP,), kens=(KEN,)) -> dict:
         OPT_SCAN_INTERVAL: 300,
         OPT_MONITORING: True,
         OPT_SERVICE_INFO: False,
+        OPT_ALLOW_CONTROL: allow_control,
     }
 
 

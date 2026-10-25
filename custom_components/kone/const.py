@@ -14,6 +14,8 @@ OPT_BUILDINGS = "buildings"
 OPT_SCAN_INTERVAL = "scan_interval"
 OPT_SERVICE_INFO = "service_info"
 OPT_MONITORING = "monitoring"
+#: Off means read-only: nothing that changes lift operation is sent.
+OPT_ALLOW_CONTROL = "allow_control"
 
 B_NAME = "name"
 B_GROUPS = "groups"

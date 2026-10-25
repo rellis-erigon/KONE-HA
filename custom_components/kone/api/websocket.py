@@ -26,7 +26,13 @@ from typing import Any
 import aiohttp
 
 from .auth import TokenManager
-from .errors import KoneAuthError, KoneConnectionError, KoneRequestError, KoneTimeout
+from .errors import (
+    KoneAuthError,
+    KoneConnectionError,
+    KoneControlDisabled,
+    KoneRequestError,
+    KoneTimeout,
+)
 from .models import prefixed_building_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +45,10 @@ MONITOR_RENEW_MARGIN = 30
 
 #: Default monitoring topics for every lift in a group.
 DEFAULT_SUBTOPICS = ("+/position", "+/doors", "+/status", "+/next_stop_eta")
+
+#: Message types that change how lifts operate. A read-only client refuses
+#: to send any of them, whatever the caller asks for.
+CONTROL_MESSAGE_TYPES = frozenset({"lift-call-api-v2", "lift-call-api", "lift-call"})
 
 #: Lift call `action` for a destination call (DCS). Other actions, such as
 #: landing calls, are site specific; `actions()` lists the site's.
@@ -74,12 +84,15 @@ class KoneWebSocket:
         on_event: EventCallback | None = None,
         on_state: StateCallback | None = None,
         client_name: str = "homeassistant",
+        read_only: bool = False,
     ) -> None:
         self._session = session
         self._tokens = tokens
         self._on_event = on_event
         self._on_state = on_state
         self._client_name = client_name
+        #: When set, nothing that changes lift operation is ever sent.
+        self.read_only = read_only
         self._ws: aiohttp.ClientWebSocketResponse | None = None
         self._pending: dict[str, _Pending] = {}
         self._subs: dict[tuple[str, str], _Subscription] = {}
@@ -270,6 +283,7 @@ class KoneWebSocket:
         """Send `payload` and wait for the message answering request `key`."""
         if self._ws is None or self._ws.closed or not self.connected:
             raise KoneConnectionError("WebSocket not connected")
+        self._guard(payload)
         future = asyncio.get_running_loop().create_future()
         self._pending[key] = _Pending(future, expect_data)
         try:
@@ -364,10 +378,20 @@ class KoneWebSocket:
             "payload": {"session_id": int(session_id)},
         }
         # Delete answers carry no request id of ours; fire and forget.
+        self._guard(payload)
         if self._ws is None or self._ws.closed:
             raise KoneConnectionError("WebSocket not connected")
         await self._ws.send_str(json.dumps(payload))
         return payload
+
+    def _guard(self, payload: dict[str, Any]) -> None:
+        """Refuse lift control on a read-only client.
+
+        Every send goes through here, so this holds however a call is
+        reached: entity, service, or code using the client directly.
+        """
+        if self.read_only and payload.get("type") in CONTROL_MESSAGE_TYPES:
+            raise KoneControlDisabled("Lift control is disabled for this connection")
 
     # Site Monitoring ------------------------------------------------------
 

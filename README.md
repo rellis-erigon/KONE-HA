@@ -58,7 +58,8 @@ repository (category *Integration*), install **KONE Elevators**, restart.
 *Settings → Devices & services → Add integration → KONE Elevators*
 
 1. **Credentials:** client ID, client secret, API host (`dev.kone.com`
-   unless KONE gave you another).
+   unless KONE gave you another), and **Allow lift control** (off by
+   default, see [Read-only mode](#read-only-mode)).
 2. **Buildings:** tick the buildings your application can see, or type
    building IDs if one isn't listed.
 3. **For each building:** a name, the lift group IDs (comma separated,
@@ -71,12 +72,38 @@ Afterwards, go to **Configure** on the integration to:
 - **Add a building**: adds new devices without touching the existing ones
 - **Edit a building**: change groups, terminal or equipment
 - **Remove buildings**
-- **Settings**: poll interval, live monitoring on/off, service order polling
+- **Settings**: poll interval, live monitoring on/off, service order
+  polling, and **Allow lift control**
 
 Each KONE application is one config entry. If you have several sets of
 credentials, add the integration once per set.
 
+## Read-only mode
+
+**Allow lift control** is **off by default**. While it is off, nothing this
+integration does can change how a lift operates:
+
+- the **Call lift** and **Cancel call** buttons and the **From/To floor**
+  pickers are not created (if control was on before, they are deleted
+  from the entity registry, so they don't linger on dashboards)
+- the `kone.call_lift` and `kone.cancel_call` actions are refused with an
+  error
+- the API client itself refuses to send any lift-call message. This is the
+  last line of defence: it holds however a call is attempted.
+
+Monitoring, equipment status, diagnostics and **Refresh floors** keep
+working: they only read. Turn control on or off at any time under
+*Configure → Settings*. The integration reloads, and the buttons appear or
+go away.
+
+KONE scopes don't separate monitoring from calling (both need
+`callgiving/group:…`). For a guarantee enforced on KONE's side as well,
+use a KONE application that hasn't been granted the Elevator Call API, and
+set up equipment status only.
+
 ## Calling a lift
+
+*Requires **Allow lift control**.*
 
 From a dashboard, pick **From floor** and **To floor** on the group device
 and press **Call lift**.

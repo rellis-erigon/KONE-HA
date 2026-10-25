@@ -28,6 +28,7 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .api import ACTION_DESTINATION, KoneError
@@ -116,9 +117,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool
             serial_number=building.building_id,
         )
 
+    if not hub.allow_control:
+        _remove_control_entities(hass, entry)
+
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+#: unique_id suffixes of entities that change lift operation.
+CONTROL_ENTITY_KEYS = ("_call", "_cancel_call", "_from_floor", "_to_floor")
+
+
+def _remove_control_entities(hass: HomeAssistant, entry: KoneConfigEntry) -> None:
+    """Delete control entities left over from when control was allowed.
+
+    Otherwise they would linger as unavailable buttons on dashboards.
+    """
+    registry = er.async_get(hass)
+    for ent in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if ent.domain in ("button", "select") and ent.unique_id.endswith(CONTROL_ENTITY_KEYS):
+            registry.async_remove(ent.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool:
