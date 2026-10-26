@@ -100,9 +100,39 @@ def building_device_identifier(entry_id: str, building_id: str) -> str:
     return f"{entry_id}_building_{building_id}"
 
 
+#: The Elevator Status card, shipped with the integration (frontend/).
+FRONTEND_URL = f"/{DOMAIN}/frontend"
+CARD_FILE = "kone-elevator-card.js"
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     _register_services(hass)
+    await _serve_card(hass)
     return True
+
+
+async def _serve_card(hass: HomeAssistant) -> None:
+    """Serve the card and load it on every page: no dashboard resource needed.
+
+    Skipped where there is no web frontend (the tests, a headless install).
+    """
+    if getattr(hass, "http", None) is None or "frontend" not in hass.config.components:
+        return
+    import hashlib
+    from pathlib import Path
+
+    from homeassistant.components.frontend import add_extra_js_url
+    from homeassistant.components.http import StaticPathConfig
+
+    folder = Path(__file__).parent / "frontend"
+
+    def version() -> str:
+        return hashlib.sha256((folder / CARD_FILE).read_bytes()).hexdigest()[:10]
+
+    tag = await hass.async_add_executor_job(version)
+    # No long cache: a new card must reach browsers on their next load.
+    await hass.http.async_register_static_paths([StaticPathConfig(FRONTEND_URL, str(folder), False)])
+    add_extra_js_url(hass, f"{FRONTEND_URL}/{CARD_FILE}?v={tag}")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool:

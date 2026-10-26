@@ -292,7 +292,17 @@ class KoneHub:
             group.last_call = call
         call.status = status
         call.raw = data
-        lift = data.get("lift_id", data.get("allocated_lift"))
+        lift = next((data[k] for k in ("lift_id", "liftId", "allocated_lift", "lift") if data.get(k) is not None), None)
+        if lift is None:
+            # Or the car's deck, as an area id: the topology says whose it is.
+            for key, value in data.items():
+                if "deck" in key.lower():
+                    for area in value if isinstance(value, list) else [value]:
+                        lift = group.topology.lift_of_deck(_int(area))
+                        if lift is not None:
+                            break
+                if lift is not None:
+                    break
         if lift is not None:
             call.lift_id = _int(lift)
 

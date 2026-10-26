@@ -133,3 +133,36 @@ def test_lift_modes_as_kones_schema_names_them():
     state = LiftState()
     apply_lift_event(state, "status", {"lift_mode": 14})
     assert mode_code(state.mode) in FAULT_MODES
+
+
+def test_floor_labels_from_the_live_config_shape():
+    """Live config: lifts' floors map lift_floor_id -> group_floor_id, and each
+    destination is placed by group floor and side (front `G`, rear `GR`)."""
+    body = {
+        "callType": "config",
+        "data": {
+            "destinations": [
+                {"area_id": 1000, "short_name": "G", "group_floor_id": 1, "group_side": 1, "exit": True},
+                {"area_id": 1010, "short_name": "GR", "group_floor_id": 1, "group_side": 2},
+                {"area_id": 2000, "short_name": "1", "group_floor_id": 2, "group_side": 1},
+                {"area_id": 3000, "short_name": "2", "group_floor_id": 3, "group_side": 1},
+            ],
+            "groups": [{"group_id": 1, "lifts": [{"lift_id": 1, "lift_name": "A", "floors": [
+                {"lift_floor_id": 1, "group_floor_id": 2},  # the lift skips the ground floor
+                {"lift_floor_id": 2, "group_floor_id": 3},
+            ]}]}],
+        },
+    }
+    topo = parse_topology("B1", "1", body)
+    assert topo.lifts[1].floors == [1, 2]
+    assert topo.floor_name(1, 1) == "1" and topo.floor_name(1, 2) == "2"
+    assert topo.floor_labels(1) == ["1", "2"]
+
+
+def test_a_deck_area_names_its_lift():
+    topo = parse_topology("B1", "1", {"data": {"groups": [{"group_id": 1, "lifts": [
+        {"lift_id": 1, "lift_name": "A", "decks": [{"area_id": 1001010, "deck": 0}]},
+        {"lift_id": 2, "lift_name": "B", "decks": [{"area_id": 1001020, "deck": 0}]},
+    ]}]}})
+    assert topo.lift_of_deck(1001020) == 2
+    assert topo.lift_of_deck(999) is None and topo.lift_of_deck(None) is None

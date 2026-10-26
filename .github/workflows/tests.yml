@@ -24,6 +24,18 @@ jobs:
         # no KONE credentials are needed or used.
         run: pytest -q
 
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install jsdom
+        run: npm install --no-save --prefix tests/card jsdom@25
+      - name: Test the Elevator Status card
+        run: node tests/card/test-card.mjs
+
   hassfest:
     runs-on: ubuntu-latest
     steps:

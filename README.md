@@ -5,7 +5,7 @@ Anyone with a KONE API Portal application can use it with their own client ID
 and secret. Add as many buildings as your application has been granted, and
 each one shows up as a device with its lift groups, lifts and equipment under it.
 
-> **Status: 0.4.2, tested against the live KONE sandbox** (dev.kone.com,
+> **Status: 0.5.0, tested against the live KONE sandbox** (dev.kone.com,
 > five virtual buildings): sign-in, the building inventory, call-giving
 > scopes, and live lift monitoring over the WebSocket (floor, direction,
 > motion, doors, mode) all work. Equipment status is the exception, see
@@ -31,6 +31,26 @@ is polled, every 5 minutes by default, to stay inside API quotas.
 **Nothing is exposed to the internet.** Every connection goes out from Home
 Assistant to KONE: the token, the WebSocket and the polls. The integration
 never registers a webhook, so KONE never calls in.
+
+### Elevator Status card
+
+The integration comes with a card that draws one lift: the car in its shaft
+with the lift's name on it, the landings beside it with the current one
+marked, arrows that light while it moves, and its operation (mode), faults,
+direction, speed, target floor and doors. It is served by the integration
+and loaded on every page, so there is no dashboard resource to add.
+
+**Dashboard → Edit → Add card → KONE Elevator Status**, and pick a lift. In
+YAML:
+
+```yaml
+type: custom:kone-elevator-card
+device: Main Building A     # a KONE lift device (name or id)
+title: Main Building        # optional
+floors_shown: 7             # optional: landings in the column
+```
+
+The cog opens the lift's device page and the chart its floor history.
 
 ### Lift mode
 

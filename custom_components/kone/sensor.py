@@ -78,6 +78,9 @@ class FloorSensor(KoneLiftEntity, SensorEntity):
             "next_floor_index": lift.next_floor,
             "next_floor": self.group.topology.floor_name(self.lift_id, lift.next_floor),
             "last_update": lift.last_update,
+            # For the Elevator Status card: the shaft's landings and the car's name.
+            "floors": self.group.topology.floor_labels(self.lift_id),
+            "lift_name": lift_info.name if (lift_info := self.group.topology.lifts.get(self.lift_id)) else None,
         }
 
 
@@ -158,6 +161,9 @@ class LastCallSensor(KoneGroupEntity, SensorEntity):
                 from_floor=src.short_name if src else call.source,
                 to_floor=dst.short_name if dst else call.destination,
                 lift_id=call.lift_id,
+                lift=topo.lifts[call.lift_id].name if call.lift_id in topo.lifts else None,
+                # KONE's own last call-state message, to see what it names.
+                raw=call.raw or None,
             )
         return attrs
 

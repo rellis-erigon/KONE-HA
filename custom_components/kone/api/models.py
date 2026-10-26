@@ -179,6 +179,10 @@ class Area:
     exit: bool = False
     #: (lift_id, floor) pairs that serve this area, where KONE says so.
     lift_floors: list[tuple[int, int]] = field(default_factory=list)
+    #: The live config's way of placing an area: the group's floor and side
+    #: (side 1 is the front, 2 the rear: `1` and `1R`).
+    group_floor_id: int | None = None
+    group_side: int | None = None
 
 
 @dataclass
@@ -187,6 +191,8 @@ class Lift:
     name: str
     floors: list[int] = field(default_factory=list)
     raw: dict = field(default_factory=dict)
+    #: lift_floor_id -> group_floor_id, from the live config's floors[].
+    floor_groups: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -204,7 +210,41 @@ class Topology:
         for area in self.areas.values():
             if (lift_id, floor) in area.lift_floors:
                 return area.short_name
+        # The live config places areas by group floor and side instead.
+        lift = self.lifts.get(lift_id)
+        group_floor = lift.floor_groups.get(floor) if lift else None
+        if group_floor is not None:
+            area = self._front_area(group_floor)
+            if area is not None:
+                return area.short_name
         return None
+
+    def _front_area(self, group_floor: int) -> Area | None:
+        """The front (lowest side) area of a group floor."""
+        found = [a for a in self.areas.values() if a.group_floor_id == group_floor]
+        return min(found, key=lambda a: (a.group_side or 0, a.area_id)) if found else None
+
+    def lift_of_deck(self, area_id: int | None) -> int | None:
+        """The lift whose deck has this area id (config `lifts[].decks[]`)."""
+        if area_id is None:
+            return None
+        for lift in self.lifts.values():
+            for deck in lift.raw.get("decks") or []:
+                if isinstance(deck, dict) and _int(deck.get("area_id")) == area_id:
+                    return lift.lift_id
+        return None
+
+    def floor_labels(self, lift_id: int) -> list[str]:
+        """The landings a lift serves, bottom to top, by their labels."""
+        lift = self.lifts.get(lift_id)
+        if lift is None:
+            return []
+        labels = []
+        for floor in sorted(lift.floors, key=lambda f: lift.floor_groups.get(f, f)):
+            name = self.floor_name(lift_id, floor)
+            if name is not None and name not in labels:
+                labels.append(name)
+        return labels
 
     def area_by_name(self, name: str) -> Area | None:
         for area in self.areas.values():
@@ -250,12 +290,16 @@ def parse_topology(building_id: str, group_id: str, body: Any) -> Topology:
         if lift_id is None:
             lift_id = index
         floors = []
+        floor_groups: dict[int, int] = {}
         for floor in lift.get("floors") or []:
-            number = (
-                _int(floor.get("floor", floor.get("floor_id")))
-                if isinstance(floor, dict)
-                else _int(floor)
-            )
+            if isinstance(floor, dict):
+                # The live config writes lift_floor_id and group_floor_id.
+                number = _int(floor.get("floor", floor.get("floor_id", floor.get("lift_floor_id"))))
+                group_floor = _int(floor.get("group_floor_id"))
+                if number is not None and group_floor is not None:
+                    floor_groups[number] = group_floor
+            else:
+                number = _int(floor)
             if number is not None:
                 floors.append(number)
         topo.lifts[lift_id] = Lift(
@@ -263,6 +307,7 @@ def parse_topology(building_id: str, group_id: str, body: Any) -> Topology:
             name=str(lift.get("lift_name") or lift.get("liftName") or lift.get("name") or f"Lift {lift_id}"),
             floors=floors,
             raw=lift,
+            floor_groups=floor_groups,
         )
 
     for dest in data.get("destinations") or data.get("areas") or []:
@@ -275,6 +320,8 @@ def parse_topology(building_id: str, group_id: str, body: Any) -> Topology:
             area_id=area_id,
             short_name=str(dest.get("short_name") or dest.get("shortName") or area_id),
             exit=bool(dest.get("exit") or dest.get("exit_floor") or dest.get("exitFloor")),
+            group_floor_id=_int(dest.get("group_floor_id")),
+            group_side=_int(dest.get("group_side")),
         )
         for served in dest.get("lifts") or []:
             if not isinstance(served, dict):
