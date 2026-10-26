@@ -166,3 +166,23 @@ def test_a_deck_area_names_its_lift():
     ]}]}})
     assert topo.lift_of_deck(1001020) == 2
     assert topo.lift_of_deck(999) is None and topo.lift_of_deck(None) is None
+
+
+def test_a_double_deck_lift_reads_its_lower_deck_and_stops_at_its_doors():
+    """Replayed from a live double-deck arrival: the position event was about
+    the upper deck (one floor above), said DECELERATING, and only door events
+    followed."""
+    topo = parse_topology("B1", "1", {"data": {"groups": [{"group_id": 1, "lifts": [
+        {"lift_id": 5, "lift_name": "E", "decks": [{"area_id": 1001050, "deck": 0},
+                                                   {"area_id": 1001051, "deck": 1}]},
+    ]}]}})
+    state = LiftState()
+    apply_lift_event(state, "position", {"dir": "UP", "moving_state": "DECELERATING",
+                                         "area": 1001051, "cur": 19, "adv": 19})
+    assert topo.main_floor(5, state) == 18
+    assert state.moving_state == "decelerating"
+    apply_lift_event(state, "doors", {"area": 1001050, "state": "OPENED", "landing": 18000})
+    assert state.moving_state == "standing" and state.door_open
+    # Once the lower deck has reported, its own floor is used.
+    apply_lift_event(state, "position", {"area": 1001050, "cur": 20, "moving_state": "MOVING"})
+    assert topo.main_floor(5, state) == 20

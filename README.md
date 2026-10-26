@@ -5,7 +5,7 @@ Anyone with a KONE API Portal application can use it with their own client ID
 and secret. Add as many buildings as your application has been granted, and
 each one shows up as a device with its lift groups, lifts and equipment under it.
 
-> **Status: 0.5.0, tested against the live KONE sandbox** (dev.kone.com,
+> **Status: 0.5.1, tested against the live KONE sandbox** (dev.kone.com,
 > five virtual buildings): sign-in, the building inventory, call-giving
 > scopes, and live lift monitoring over the WebSocket (floor, direction,
 > motion, doors, mode) all work. Equipment status is the exception, see
@@ -51,6 +51,10 @@ floors_shown: 7             # optional: landings in the column
 ```
 
 The cog opens the lift's device page and the chart its floor history.
+
+A **double-deck** lift is shown at its lower deck's floor, with both decks
+under *Decks* (e.g. `18 / 19`): KONE's position events can be about either
+deck, and the upper one is a floor higher.
 
 ### Lift mode
 

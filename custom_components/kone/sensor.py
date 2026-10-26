@@ -65,7 +65,8 @@ class FloorSensor(KoneLiftEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        floor = self.lift.floor
+        # The lowest deck's floor: a double-deck lift reports either deck.
+        floor = self.group.topology.main_floor(self.lift_id, self.lift)
         if floor is None:
             return None
         return self.group.topology.floor_name(self.lift_id, floor) or str(floor)
@@ -80,6 +81,11 @@ class FloorSensor(KoneLiftEntity, SensorEntity):
             "last_update": lift.last_update,
             # For the Elevator Status card: the shaft's landings and the car's name.
             "floors": self.group.topology.floor_labels(self.lift_id),
+            # Per deck, lowest first, where the lift has more than one.
+            "deck_floors": [
+                self.group.topology.floor_name(self.lift_id, f) or str(f)
+                for _, f in sorted(lift.deck_floors.items())
+            ] if len(lift.deck_floors) > 1 else None,
             "lift_name": lift_info.name if (lift_info := self.group.topology.lifts.get(self.lift_id)) else None,
         }
 

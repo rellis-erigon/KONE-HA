@@ -224,6 +224,35 @@ class Topology:
         found = [a for a in self.areas.values() if a.group_floor_id == group_floor]
         return min(found, key=lambda a: (a.group_side or 0, a.area_id)) if found else None
 
+    def deck_index(self, lift_id: int, area_id: int | None) -> int | None:
+        """Which deck of a lift an area is (0 = the lowest)."""
+        lift = self.lifts.get(lift_id)
+        for deck in (lift.raw.get("decks") or []) if lift else []:
+            if isinstance(deck, dict) and _int(deck.get("area_id")) == area_id:
+                return _int(deck.get("deck"))
+        return None
+
+    def main_floor(self, lift_id: int, state: "LiftState") -> int | None:
+        """The lift's floor as its lowest deck sees it.
+
+        A double-deck lift's position events can be about either deck, and
+        its upper deck is a floor above the lower. Where only the upper
+        deck has reported, the lower is that floor less its deck index.
+        """
+        lift = self.lifts.get(lift_id)
+        decks = [d for d in (lift.raw.get("decks") or []) if isinstance(d, dict)] if lift else []
+        if len(decks) < 2 or not state.deck_floors:
+            return state.floor
+        lowest = min(decks, key=lambda d: _int(d.get("deck")) or 0)
+        area0 = _int(lowest.get("area_id"))
+        if area0 in state.deck_floors:
+            return state.deck_floors[area0]
+        # The deck the latest position event was about.
+        area = _int(state.raw.get("position", {}).get("area"))
+        floor = state.deck_floors.get(area, state.floor)
+        index = self.deck_index(lift_id, area)
+        return floor - index if index and floor is not None else floor
+
     def lift_of_deck(self, area_id: int | None) -> int | None:
         """The lift whose deck has this area id (config `lifts[].decks[]`)."""
         if area_id is None:
@@ -436,6 +465,9 @@ class LiftState:
     next_stop_eta: Any = None
     last_update: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
+    #: Where each deck is, by its area id: a double-deck lift's position
+    #: events name the deck they are about (`area`).
+    deck_floors: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -467,6 +499,9 @@ def apply_lift_event(state: LiftState, kind: str, data: dict) -> None:
 
     if kind == "position":
         state.floor = _int(data.get("cur", data.get("floor", state.floor)))
+        area = _int(data.get("area"))
+        if area is not None and state.floor is not None:
+            state.deck_floors[area] = state.floor
         state.next_floor = _int(data.get("adv", data.get("advanced_floor")))
         if "dir" in data:
             state.direction = _direction(data["dir"])
@@ -476,6 +511,12 @@ def apply_lift_event(state: LiftState, kind: str, data: dict) -> None:
             state.door_open = data["door"]
     elif kind == "doors":
         raw = data.get("state", data.get("door_state"))
+        # Doors only move with the car at a landing. The live API's last
+        # position event on arrival says DECELERATING, and no "standing"
+        # follows, so without this the lift reads as moving until it next
+        # departs.
+        if state.moving_state not in (None, "standing"):
+            state.moving_state = "standing"
         if raw is not None:
             state.door_state = str(raw).lower()
             upper = str(raw).upper()

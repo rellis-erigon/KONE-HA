@@ -203,6 +203,7 @@ class KoneElevatorCard extends HTMLElement {
             <span>Speed:</span><span>${speed != null ? `${esc(speed)} m/s` : "–"}</span>
             <span>Target floor:</span><span>${esc(target ?? "–")}</span>
             <span>Door status:</span><span class="${doorOpen ? "warn" : "good"}">${door ? (doorOpen ? "Open" : "Closed") : "–"}</span>
+            ${fa.deck_floors ? `<span>Decks:</span><span>${fa.deck_floors.map(esc).join(" / ")}</span>` : ""}
           </div>
         </div>
         <div class="foot">
