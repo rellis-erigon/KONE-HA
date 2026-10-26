@@ -158,6 +158,10 @@ class FakeKone:
 
         if kind == "common-api" and call_type == "config":
             await ws.send_json({**base, "type": "ok", "requestId": msg["requestId"], "statusCode": 201})
+            # As the live API does: an acknowledgement carrying only a
+            # timestamp first, then the topology.
+            await ws.send_json({"connectionId": "fake", "requestId": msg["requestId"],
+                                "statusCode": 201, "data": {"time": "2026-01-01T00:00:00Z"}})
             await ws.send_json({**base, "requestId": msg["requestId"], "callType": "config", "data": TOPOLOGY})
         elif kind == "common-api" and call_type == "actions":
             await ws.send_json(

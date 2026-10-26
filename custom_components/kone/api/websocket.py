@@ -480,4 +480,15 @@ def _is_error(msg: dict) -> bool:
 
 
 def _has_data(msg: dict) -> bool:
-    return bool(msg.get("data")) or "callType" in msg
+    """Whether a message answers a request, not just acknowledges it.
+
+    The live API acknowledges a `config` request with `statusCode: 201` and
+    `data: {"time": ...}`, then sends the topology in a second message that
+    carries `callType`. A timestamp alone is not an answer.
+    """
+    if "callType" in msg:
+        return True
+    data = msg.get("data")
+    if isinstance(data, dict):
+        return bool(set(data) - {"time"})
+    return bool(data)
