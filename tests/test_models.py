@@ -93,3 +93,22 @@ def test_scopes_from_options_written_either_way():
         "rtm/ken:777",
         "rtm/ken:778",
     ]
+
+
+def test_only_equipment_with_rtm_is_pollable():
+    """The live sandbox lists products per equipment; a building's own ken has none."""
+    res = parse_resources(
+        {
+            "buildings": [{"id": "AbC123", "apiKens": ["555"], "groups": [{"id": "AbC123:1"}]}],
+            "equipments": [
+                {"id": "777", "products": ["serviceinfo", "rtm"]},
+                {"id": "778", "products": ["serviceinfo"]},
+            ],
+        }
+    )
+    assert res.equipment["ken:777"].pollable
+    assert not res.equipment["ken:778"].pollable
+    assert not res.equipment["ken:555"].pollable
+    # Without product lists nothing is held back.
+    plain = parse_resources({"equipments": [{"id": "ken:9"}]})
+    assert plain.equipment["ken:9"].pollable

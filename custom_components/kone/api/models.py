@@ -70,6 +70,14 @@ class EquipmentResource:
     building_id: str | None = None
     description: str | None = None
     equipment_type: str | None = None
+    #: The APIs KONE lists for it (`rtm`, `serviceinfo`); None when it was
+    #: only named under a building and the inventory said nothing.
+    products: list[str] | None = None
+
+    @property
+    def pollable(self) -> bool:
+        """Whether Equipment Status (`rtm`) can be asked about it."""
+        return self.products is None or "rtm" in self.products
 
 
 @dataclass
@@ -114,17 +122,32 @@ def parse_resources(body: Any) -> Resources:
         res.equipment[ken] = EquipmentResource(
             ken=ken,
             building_id=bare_building_id(bid) if bid else None,
-            description=item.get("description") or item.get("name"),
+            description=_text(item.get("description") or item.get("desc") or item.get("name")),
             equipment_type=item.get("type") or item.get("equipmentType"),
+            products=[str(p) for p in item["products"]] if isinstance(item.get("products"), list) else None,
         )
 
     # Building kens are equipment too, even when KONE only lists them there.
+    # When the inventory says which APIs its equipment has, a ken it does not
+    # list as equipment has none of them: the live sandbox names each
+    # building's own number under `apiKens`, and refuses `rtm` for it.
+    described = any(eq.products is not None for eq in res.equipment.values())
     for building in res.buildings.values():
         for ken in building.kens:
             res.equipment.setdefault(
-                ken, EquipmentResource(ken=ken, building_id=building.building_id)
+                ken,
+                EquipmentResource(
+                    ken=ken, building_id=building.building_id,
+                    products=[] if described else None,
+                ),
             )
     return res
+
+
+def _text(value: Any) -> str | None:
+    """A description, or None for the blanks the live inventory sends (`" "`)."""
+    text = str(value).strip() if value is not None else ""
+    return text or None
 
 
 def _add_group(res: Resources, gid: Any, fallback_building: str | None) -> None:

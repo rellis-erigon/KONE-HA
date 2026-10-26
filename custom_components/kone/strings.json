@@ -46,7 +46,7 @@
       "cannot_connect": "Could not reach the KONE API.",
       "no_buildings": "Choose at least one building.",
       "nothing_selected": "Add at least one lift group or one piece of equipment.",
-      "scope_refused": "KONE refused access to one of the chosen groups or equipment. Check that your application has been granted them in the API Portal."
+      "scope_refused": "KONE refused access to: {refused}. Check that your application has been granted it in the API Portal, or leave it out."
     },
     "abort": {
       "already_configured": "This KONE application is already set up.",
@@ -109,7 +109,7 @@
     "error": {
       "no_buildings": "Choose at least one building.",
       "nothing_selected": "Add at least one lift group or one piece of equipment.",
-      "scope_refused": "KONE refused access to one of the chosen groups or equipment.",
+      "scope_refused": "KONE refused access to: {refused}. Check that your application has been granted it in the API Portal, or leave it out.",
       "cannot_connect": "Could not reach the KONE API."
     }
   },

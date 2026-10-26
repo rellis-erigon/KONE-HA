@@ -107,17 +107,49 @@ async def _discover(hass, data: Mapping[str, Any]) -> Resources:
     return await KoneRestClient(session, tokens).resources()
 
 
+class ScopeRefused(KoneAuthError):
+    """KONE would not grant a token for the configuration; `refused` says what."""
+
+    def __init__(self, refused: list[str]) -> None:
+        super().__init__("Refused: " + (", ".join(refused) or "the token request"))
+        self.refused = refused
+
+    @property
+    def text(self) -> str:
+        return ", ".join(self.refused) or "the whole request (check the client ID and secret)"
+
+
 async def _check_scopes(hass, data: Mapping[str, Any], options: Mapping[str, Any]) -> None:
-    """Ask for a token with every scope the configuration needs."""
+    """Ask for a token with every scope the configuration needs.
+
+    KONE refuses the whole request when one scope is not granted, without
+    saying which. So when it does, each scope is asked for on its own, and
+    the ones refused are named (ScopeRefused), for the form to show.
+    """
     buildings = buildings_from_options(dict(options))
-    tokens = TokenManager(
-        async_get_clientsession(hass),
-        data[CONF_CLIENT_ID],
-        data[CONF_CLIENT_SECRET],
-        data.get(CONF_HOSTNAME) or DEFAULT_HOSTNAME,
-        scopes_for(buildings, bool(options.get(OPT_SERVICE_INFO))),
-    )
-    await tokens.token(force=True)
+    scopes = scopes_for(buildings, bool(options.get(OPT_SERVICE_INFO)))
+
+    def tokens(wanted) -> TokenManager:
+        return TokenManager(
+            async_get_clientsession(hass),
+            data[CONF_CLIENT_ID],
+            data[CONF_CLIENT_SECRET],
+            data.get(CONF_HOSTNAME) or DEFAULT_HOSTNAME,
+            wanted,
+        )
+
+    try:
+        await tokens(scopes).token(force=True)
+    except KoneAuthError:
+        refused = []
+        for scope in scopes:
+            if scope == SCOPE_INVENTORY:
+                continue
+            try:
+                await tokens((SCOPE_INVENTORY, scope)).token(force=True)
+            except KoneAuthError:
+                refused.append(scope)
+        raise ScopeRefused(refused) from None
 
 
 def _parse_list(text: str) -> list[str]:
@@ -142,10 +174,12 @@ def _building_schema(
     groups_default = groups if isinstance(groups, str) else ",".join(groups)
     ken_options: list[str] = []
     if resources:
+        # Only what Equipment Status can be asked about: offering the rest
+        # makes the scope check fail for the whole configuration.
         ken_options = [
             ken
             for ken, eq in resources.equipment.items()
-            if eq.building_id in (None, building_id)
+            if eq.building_id in (None, building_id) and eq.pollable
         ]
     for ken in current.get(B_KENS) or []:
         if ken not in ken_options:
@@ -289,7 +323,7 @@ class KoneConfigFlow(ConfigFlow, domain=DOMAIN):
         }
         try:
             await _check_scopes(self.hass, self._data, options)
-        except KoneAuthError:
+        except ScopeRefused as err:
             # Start over on the building list so the user can drop the one
             # the application has not been granted.
             self._buildings = {}
@@ -298,7 +332,8 @@ class KoneConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=_choose_schema(self._resources, set()),
                 errors={"base": "scope_refused"},
                 description_placeholders={
-                    "found": str(len(self._resources.buildings) if self._resources else 0)
+                    "found": str(len(self._resources.buildings) if self._resources else 0),
+                    "refused": err.text,
                 },
             )
         except KoneError:
@@ -383,6 +418,7 @@ class KoneOptionsFlow(OptionsFlow):
     async def async_step_building(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         building_id = self._queue[0]
         errors: dict[str, str] = {}
+        refused = ""
         if user_input is not None:
             building = _building_from_input(user_input)
             if not building[B_GROUPS] and not building[B_KENS]:
@@ -396,12 +432,13 @@ class KoneOptionsFlow(OptionsFlow):
                         self.config_entry.data,
                         {**self.config_entry.options, OPT_BUILDINGS: self._current},
                     )
-                except KoneAuthError:
+                except ScopeRefused as err:
                     if previous is None:
                         self._current.pop(building_id)
                     else:
                         self._current[building_id] = previous
                     errors["base"] = "scope_refused"
+                    refused = err.text
                 except KoneError:
                     errors["base"] = "cannot_connect"
                 else:
@@ -415,7 +452,7 @@ class KoneOptionsFlow(OptionsFlow):
                 self._resources, building_id, user_input or self._current.get(building_id)
             ),
             errors=errors,
-            description_placeholders={"building_id": building_id},
+            description_placeholders={"building_id": building_id, "refused": refused},
         )
 
     # Edit / remove --------------------------------------------------------
@@ -460,6 +497,7 @@ class KoneOptionsFlow(OptionsFlow):
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         options = self.config_entry.options
         errors: dict[str, str] = {}
+        refused = ""
         if user_input is not None:
             changes = {
                 OPT_SCAN_INTERVAL: int(user_input[OPT_SCAN_INTERVAL]),
@@ -471,8 +509,9 @@ class KoneOptionsFlow(OptionsFlow):
                 await _check_scopes(
                     self.hass, self.config_entry.data, {**options, **changes, OPT_BUILDINGS: self._current}
                 )
-            except KoneAuthError:
+            except ScopeRefused as err:
                 errors["base"] = "scope_refused"
+                refused = err.text
             except KoneError:
                 errors["base"] = "cannot_connect"
             else:
@@ -498,4 +537,5 @@ class KoneOptionsFlow(OptionsFlow):
                 }
             ),
             errors=errors,
+            description_placeholders={"refused": refused},
         )

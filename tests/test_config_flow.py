@@ -70,6 +70,8 @@ async def test_refused_group_scope_sends_user_back(hass: HomeAssistant, kone) ->
     )
     assert result["step_id"] == "choose"
     assert result["errors"] == {"base": "scope_refused"}
+    # The refused scope is named, not just "one of them".
+    assert result["description_placeholders"]["refused"] == callgiving_scope(BUILDING, "9")
 
 
 async def test_options_add_and_remove_building(hass: HomeAssistant, kone, make_entry) -> None:

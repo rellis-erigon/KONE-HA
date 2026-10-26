@@ -5,7 +5,7 @@ Anyone with a KONE API Portal application can use it with their own client ID
 and secret. Add as many buildings as your application has been granted, and
 each one shows up as a device with its lift groups, lifts and equipment under it.
 
-> **Status: 0.2.1, tested against the live KONE sandbox** (dev.kone.com,
+> **Status: 0.3.0, tested against the live KONE sandbox** (dev.kone.com,
 > five virtual buildings): sign-in, the building inventory, call-giving
 > scopes, and live lift monitoring over the WebSocket (floor, direction,
 > motion, doors, mode) all work. Equipment status is the exception, see
@@ -145,6 +145,8 @@ leave out `to_floor` for a landing call) to use them.
   ```
 - **`scope_refused`:** the application hasn't been granted that group or
   piece of equipment in the API Portal, or isn't subscribed to the API.
+  The form names the scope KONE refused (`callgiving/group:…`,
+  `rtm/ken:…`), so you can leave that one out.
   Before 0.2.1 it also happened for every live setup: the inventory lists
   groups as `BUILDING:GROUP` and equipment as bare numbers, and both were
   put into the scope as they came.
@@ -152,9 +154,9 @@ leave out `to_floor` for a landing call) to use them.
   Status API answers *"You need to create a webhook subscription to make API
   call"* until the application has a webhook subscription, which this
   integration does not create yet. Leave **Equipment** empty for now.
-- **Only the `equipments` list is equipment:** a building's own number in
-  `apiKens` (e.g. the building name) is not granted `rtm` on the sandbox;
-  picking it under Equipment makes the scope check fail.
+- **Equipment offered:** the setup only offers equipment the inventory lists
+  with the `rtm` product (Equipment Status). A building's own number under
+  `apiKens` is not granted `rtm` on the sandbox, so it is not offered.
 - **Floor shows a number instead of a label:** the floor index wasn't in
   the group's topology. Press **Refresh floors**, and if it still happens,
   include diagnostics in an issue.
