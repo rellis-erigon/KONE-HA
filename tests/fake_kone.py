@@ -47,6 +47,9 @@ class FakeKone:
     ws_received: list[dict] = field(default_factory=list)
     sockets: list[web.WebSocketResponse] = field(default_factory=list)
     availability_state: str = "IN_SERVICE"
+    #: Answer Equipment Status as the live sandbox does for an application
+    #: with no webhook subscription.
+    require_webhook: bool = False
     entrapment: bool = False
     next_session_id: int = 555
     url: str = ""
@@ -104,12 +107,20 @@ class FakeKone:
         )
 
     async def _availability(self, request: web.Request) -> web.Response:
+        if self.require_webhook:
+            return web.json_response(
+                {"message": "You need to create a webhook subscription to make API call."}, status=400
+            )
         body = await request.json()
         return web.json_response(
             [{"equipmentId": k, "state": self.availability_state} for k in body["equipmentIds"]]
         )
 
     async def _status(self, request: web.Request) -> web.Response:
+        if self.require_webhook:
+            return web.json_response(
+                {"message": "You need to create a webhook subscription to make API call."}, status=400
+            )
         body = await request.json()
         return web.json_response(
             [

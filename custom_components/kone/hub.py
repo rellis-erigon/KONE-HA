@@ -21,6 +21,7 @@ from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceValidationError,
 )
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -208,7 +209,11 @@ class KoneHub:
 
         if self.all_kens:
             self.equipment = EquipmentCoordinator(self.hass, self)
-            await self.equipment.async_config_entry_first_refresh()
+            # Not async_config_entry_first_refresh: equipment that fails to
+            # answer (no webhook subscription, an API not subscribed) must not
+            # hold back the lifts. Its entities show unavailable instead, and
+            # a refused token still starts reauthentication.
+            await self.equipment.async_refresh()
 
     async def async_stop(self) -> None:
         await self.ws.stop()
@@ -387,6 +392,7 @@ class EquipmentCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         kens = self.hub.all_kens
         out: dict[str, dict[str, Any]] = {ken: {} for ken in kens}
+        webhook_refused = False
         try:
             for kind, fetch in (
                 ("availability", self.hub.rest.availability),
@@ -401,6 +407,7 @@ class EquipmentCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     raise
                 except KoneError as err:
                     # One API not being subscribed should not hide the other.
+                    webhook_refused = webhook_refused or needs_webhook(err)
                     _LOGGER.debug("Equipment %s unavailable: %s", kind, err)
             if self.hub.service_info:
                 for ken in kens:
@@ -413,8 +420,34 @@ class EquipmentCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         except KoneError as err:
             raise UpdateFailed(str(err)) from err
         if kens and not any(out.values()):
+            if webhook_refused:
+                # Said once, in Repairs, rather than as an error every poll.
+                ir.async_create_issue(
+                    self.hass, DOMAIN, f"{ISSUE_EQUIPMENT_WEBHOOK}_{self.hub.entry.entry_id}",
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key=ISSUE_EQUIPMENT_WEBHOOK,
+                    translation_placeholders={"title": self.hub.entry.title},
+                )
+                raise UpdateFailed(
+                    "KONE answers Equipment Status only once the application has a "
+                    "webhook subscription; this integration does not create one"
+                )
             raise UpdateFailed("No equipment data returned")
+        ir.async_delete_issue(
+            self.hass, DOMAIN, f"{ISSUE_EQUIPMENT_WEBHOOK}_{self.hub.entry.entry_id}")
         return out
+
+
+#: What KONE answers Equipment Status with until the application has a
+#: webhook subscription (seen on the live sandbox). This integration never
+#: creates one: it would need Home Assistant reachable from the internet.
+WEBHOOK_REQUIRED = "webhook subscription"
+ISSUE_EQUIPMENT_WEBHOOK = "equipment_needs_webhook"
+
+
+def needs_webhook(err: Exception) -> bool:
+    return WEBHOOK_REQUIRED in str(err).lower()
 
 
 def _int(value: Any) -> int | None:

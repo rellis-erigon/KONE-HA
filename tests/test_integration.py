@@ -132,6 +132,20 @@ async def test_equipment_status(hass: HomeAssistant, kone, make_entry) -> None:
     assert hass.states.get(ENTRAP).state == "on"
 
 
+async def test_equipment_needing_a_webhook_is_reported_once(
+    hass: HomeAssistant, kone, make_entry
+) -> None:
+    """Without a webhook subscription, KONE refuses Equipment Status: say so in Repairs."""
+    from homeassistant.helpers import issue_registry as ir
+
+    kone.require_webhook = True
+    entry = await _setup(hass, kone, make_entry)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"equipment_needs_webhook_{entry.entry_id}")
+    assert issue is not None and issue.translation_key == "equipment_needs_webhook"
+    # Lift monitoring is not affected.
+    assert entry.state is ConfigEntryState.LOADED
+
+
 async def test_equipment_only_building_needs_no_websocket(
     hass: HomeAssistant, kone, make_entry
 ) -> None:

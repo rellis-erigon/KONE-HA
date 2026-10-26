@@ -30,6 +30,9 @@
           "groups": "Lift group IDs (comma separated)",
           "terminal": "Terminal ID used for calls",
           "kens": "Equipment to poll (ken:…)"
+        },
+        "data_description": {
+          "kens": "Equipment Status only answers once your KONE application has a webhook subscription, which needs Home Assistant reachable from the internet. This integration does not create one, so leave this empty unless your application already has it. Lift monitoring does not need it."
         }
       },
       "reauth_confirm": {
@@ -79,6 +82,9 @@
           "groups": "Lift group IDs (comma separated)",
           "terminal": "Terminal ID used for calls",
           "kens": "Equipment to poll (ken:…)"
+        },
+        "data_description": {
+          "kens": "Equipment Status only answers once your KONE application has a webhook subscription, which needs Home Assistant reachable from the internet. This integration does not create one, so leave this empty unless your application already has it. Lift monitoring does not need it."
         }
       },
       "edit_building": {
@@ -256,6 +262,12 @@
           "description": "Lift group ID."
         }
       }
+    }
+  },
+  "issues": {
+    "equipment_needs_webhook": {
+      "title": "KONE equipment status needs a webhook subscription",
+      "description": "KONE refuses Equipment Status for {title} until the KONE application has a webhook subscription. This integration does not create one, because it would need Home Assistant reachable from the internet. Lift monitoring and calls are unaffected. To stop this, remove the equipment from the building (Configure → Edit building), or add a webhook subscription in the KONE API Portal."
     }
   }
 }
