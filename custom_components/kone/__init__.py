@@ -81,6 +81,17 @@ CANCEL_SCHEMA = vol.Schema({**_TARGET, vol.Optional(ATTR_SESSION_ID): cv.positiv
 REFRESH_SCHEMA = vol.Schema(_TARGET)
 
 
+def link_parent(registry: dr.DeviceRegistry, device, parent_id: str | None) -> None:
+    """Link a device to its parent by device id.
+
+    `via_device` (an identifier) is deprecated since Home Assistant 2026.8 in
+    favour of `via_device_id`, which async_get_or_create and DeviceInfo only
+    take from then on; async_update_device has taken it for much longer.
+    """
+    if parent_id and device.via_device_id != parent_id:
+        registry.async_update_device(device.id, via_device_id=parent_id)
+
+
 def group_device_identifier(entry_id: str, building_id: str, group_id: str) -> str:
     return f"{entry_id}_group_{building_id}_{group_id}"
 
@@ -106,8 +117,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool
         raise ConfigEntryNotReady(str(err)) from err
     entry.runtime_data = hub
 
-    # The device tree's upper levels, made here so their entities can name
-    # them by device id (`via_device_id`; `via_device` is deprecated).
+    # The device tree's upper levels, made here so each device below can be
+    # linked to its parent by device id (`via_device` is deprecated).
     registry = dr.async_get(hass)
     for building in hub.buildings.values():
         ident = building_device_identifier(entry.entry_id, building.building_id)
@@ -128,9 +139,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool
             manufacturer=MANUFACTURER,
             model="Lift group",
             name=f"{hub.buildings[building_id].name} group {group_id}",
-            via_device_id=hub.device_ids.get(
-                building_device_identifier(entry.entry_id, building_id)),
         )
+        link_parent(registry, device, hub.device_ids.get(
+            building_device_identifier(entry.entry_id, building_id)))
         hub.device_ids[ident] = device.id
 
     if not hub.allow_control:

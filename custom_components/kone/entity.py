@@ -11,16 +11,28 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import building_device_identifier, group_device_identifier
+from . import building_device_identifier, group_device_identifier, link_parent
 from .api import LiftState
 from .const import DOMAIN, MANUFACTURER
 from .hub import EquipmentCoordinator, GroupState, KoneHub
+
+
+def _link_to_parent(entity: Entity, hub: KoneHub) -> None:
+    """Link the entity's device under its parent once the device exists."""
+    parent = getattr(entity, "_parent", None)
+    if not parent or entity.registry_entry is None or not entity.registry_entry.device_id:
+        return
+    registry = dr.async_get(entity.hass)
+    device = registry.async_get(entity.registry_entry.device_id)
+    if device is not None:
+        link_parent(registry, device, hub.device_ids.get(parent))
 
 
 class KoneHubEntity(Entity):
@@ -32,7 +44,10 @@ class KoneHubEntity(Entity):
     def __init__(self, hub: KoneHub) -> None:
         self.hub = hub
 
+    _parent: str | None = None
+
     async def async_added_to_hass(self) -> None:
+        _link_to_parent(self, self.hub)
         self.async_on_remove(
             async_dispatcher_connect(self.hass, self.hub.signal, self.async_write_ha_state)
         )
@@ -50,12 +65,12 @@ class KoneGroupEntity(KoneHubEntity):
         self._attr_unique_id = f"{entry_id}_{group.building_id}_{group.group_id}_{key}"
         self._attr_translation_key = key
         building = hub.buildings[group.building_id]
+        self._parent = building_device_identifier(entry_id, group.building_id)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, group_device_identifier(entry_id, *self.group_key))},
             manufacturer=MANUFACTURER,
             model="Lift group",
             name=f"{building.name} group {group.group_id}",
-            via_device_id=hub.device_ids.get(building_device_identifier(entry_id, group.building_id)),
         )
 
     @property
@@ -74,12 +89,12 @@ class KoneLiftEntity(KoneHubEntity):
         self._attr_translation_key = key
         lift = group.topology.lifts.get(lift_id)
         building = hub.buildings[group.building_id]
+        self._parent = group_device_identifier(entry_id, *self.group_key)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, base)},
             manufacturer=MANUFACTURER,
             model="Elevator",
             name=f"{building.name} {lift.name if lift else f'Lift {lift_id}'}",
-            via_device_id=hub.device_ids.get(group_device_identifier(entry_id, *self.group_key)),
         )
 
     @property
@@ -105,16 +120,18 @@ class KoneEquipmentEntity(CoordinatorEntity[EquipmentCoordinator]):
         self._attr_unique_id = f"{entry_id}_{ken}_{key}"
         self._attr_translation_key = key
         building = coordinator.hub.buildings[building_id]
+        self._parent = building_device_identifier(entry_id, building_id)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"{entry_id}_{ken}")},
             manufacturer=MANUFACTURER,
             model="Equipment",
             name=f"{building.name} {ken}",
             serial_number=ken.removeprefix("ken:"),
-            via_device_id=coordinator.hub.device_ids.get(
-                building_device_identifier(entry_id, building_id)
-            ),
         )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        _link_to_parent(self, self.coordinator.hub)
 
     @property
     def availability_data(self) -> dict:
