@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import KoneConfigEntry
+from .api.models import FAULT_MODE, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code
 from .entity import (
     KoneEquipmentEntity,
     KoneGroupEntity,
@@ -39,7 +40,11 @@ async def async_setup_entry(
     async_add_entities(entities)
 
     def lift_entities(hub: KoneHub, group: GroupState, lift_id: int):
-        return [DoorSensor(hub, group, lift_id), FaultSensor(hub, group, lift_id)]
+        return [
+            DoorSensor(hub, group, lift_id),
+            FaultSensor(hub, group, lift_id),
+            InServiceSensor(hub, group, lift_id),
+        ]
 
     track_lifts(hub, lift_entities, async_add_entities)
 
@@ -67,7 +72,29 @@ class FaultSensor(KoneLiftEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return self.lift.fault
+        if self.lift.fault is not None:
+            return self.lift.fault
+        # No fault field from KONE: the mode says whether it has tripped.
+        code = mode_code(self.lift.mode)
+        return None if code is None else code == FAULT_MODE
+
+
+class InServiceSensor(KoneLiftEntity, BinarySensorEntity):
+    """On while the car is in normal service (mode 0); off for any other mode."""
+
+    def __init__(self, hub, group, lift_id) -> None:
+        super().__init__(hub, group, lift_id, "in_service")
+
+    @property
+    def is_on(self) -> bool | None:
+        code = mode_code(self.lift.mode)
+        return None if code is None else code in IN_SERVICE_MODES
+
+    @property
+    def extra_state_attributes(self):
+        code = mode_code(self.lift.mode)
+        return {"mode": LIFT_MODES.get(code, MODE_OTHER) if code is not None else None,
+                "code": code}
 
 
 class ConnectedSensor(KoneGroupEntity, BinarySensorEntity):

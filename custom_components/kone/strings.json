@@ -136,7 +136,23 @@
         "name": "Motion"
       },
       "mode": {
-        "name": "Mode"
+        "name": "Mode",
+        "state": {
+          "normal": "Normal",
+          "out_of_service": "Out of service",
+          "inspection": "Inspection / maintenance",
+          "fire_service": "Fire service",
+          "independent_service": "Independent service",
+          "priority_service": "Priority / emergency service",
+          "parking": "Parking",
+          "fault": "Fault / safety trip",
+          "other": "Other"
+        },
+        "state_attributes": {
+          "code": {
+            "name": "Mode code"
+          }
+        }
       },
       "last_call": {
         "name": "Last call"
@@ -166,6 +182,9 @@
       },
       "out_of_order": {
         "name": "Out of order"
+      },
+      "in_service": {
+        "name": "In service"
       }
     },
     "select": {

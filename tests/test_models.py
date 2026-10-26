@@ -112,3 +112,19 @@ def test_only_equipment_with_rtm_is_pollable():
     # Without product lists nothing is held back.
     plain = parse_resources({"equipments": [{"id": "ken:9"}]})
     assert plain.equipment["ken:9"].pollable
+
+
+def test_lift_mode_names_and_the_safe_side():
+    from custom_components.kone.api.models import (
+        FAULT_MODE, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code,
+    )
+
+    assert LIFT_MODES[0] == "normal" and LIFT_MODES.get(42, MODE_OTHER) == MODE_OTHER
+    # Only the mode seen live counts as in service while the table is unverified.
+    assert IN_SERVICE_MODES == {0}
+    assert FAULT_MODE == 7
+    assert mode_code("0") == 0 and mode_code(None) is None and mode_code("x") is None
+
+    state = LiftState()
+    apply_lift_event(state, "status", {"lift_mode": 3})
+    assert mode_code(state.mode) == 3

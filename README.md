@@ -5,7 +5,7 @@ Anyone with a KONE API Portal application can use it with their own client ID
 and secret. Add as many buildings as your application has been granted, and
 each one shows up as a device with its lift groups, lifts and equipment under it.
 
-> **Status: 0.3.1, tested against the live KONE sandbox** (dev.kone.com,
+> **Status: 0.4.0, tested against the live KONE sandbox** (dev.kone.com,
 > five virtual buildings): sign-in, the building inventory, call-giving
 > scopes, and live lift monitoring over the WebSocket (floor, direction,
 > motion, doors, mode) all work. Equipment status is the exception, see
@@ -20,7 +20,7 @@ each one shows up as a device with its lift groups, lifts and equipment under it
 |---|---|---|
 | **Building** | parent device for everything below | config |
 | **Lift group** | `From floor` / `To floor` selects, `Call lift` and `Cancel call` buttons, `Last call` sensor (status, session ID, allocated lift, list of floors and site actions), `Connected`, `Refresh floors` | Elevator Call API v2 (WebSocket) |
-| **Lift** | `Floor` (shows the button label, e.g. `G`, `12`), `Direction`, `Motion`, `Door`, `Fault`, `Mode` | Site Monitoring (WebSocket, push) |
+| **Lift** | `Floor` (shows the button label, e.g. `G`, `12`), `Direction`, `Motion`, `Door`, `Fault`, `Mode`, `In service` | Site Monitoring (WebSocket, push) |
 | **Equipment** (`ken:…`) | `Availability`, `Maintenance`, `Entrapment`, `Out of order`, plus optional `Service orders` | Equipment Status API 2.0 / Service Info API 2.0 (REST, polled) |
 
 Lift data is pushed live over a single WebSocket per KONE application. It
@@ -31,6 +31,31 @@ is polled, every 5 minutes by default, to stay inside API quotas.
 **Nothing is exposed to the internet.** Every connection goes out from Home
 Assistant to KONE: the token, the WebSocket and the polls. The integration
 never registers a webhook, so KONE never calls in.
+
+### Lift mode
+
+`Mode` names KONE's `lift_mode` code, with the code itself in the `code`
+attribute. `In service` is on while the lift is in normal service.
+
+| Code | Mode | In service |
+|---|---|---|
+| 0 | Normal | on |
+| 1 | Out of service | off |
+| 2 | Inspection / maintenance | off |
+| 3 | Fire service | off |
+| 4 | Independent service | off |
+| 5 | Priority / emergency service | off |
+| 6 | Parking | off |
+| 7 | Fault / safety trip | off (and `Fault` on) |
+| other | Other | off |
+
+> **Unverified.** KONE's schema that names these codes is behind the API
+> Portal login, and its public examples type the mode as a bare number. Only
+> `0` has been seen live. The names for 1–7 are a plausible reading, not
+> quoted from KONE. So the integration leans to the safe side: any code but
+> `0` counts as out of service, and `7` raises `Fault`. A wrong name can
+> cause a false alarm but cannot hide a real one. If you can see KONE's
+> schema and it differs, please open an issue.
 
 ## Requirements
 
