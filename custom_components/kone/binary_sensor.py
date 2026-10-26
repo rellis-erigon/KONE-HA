@@ -11,7 +11,7 @@ from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import KoneConfigEntry
-from .api.models import FAULT_MODE, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code
+from .api.models import FAULT_MODES, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code
 from .entity import (
     KoneEquipmentEntity,
     KoneGroupEntity,
@@ -76,11 +76,11 @@ class FaultSensor(KoneLiftEntity, BinarySensorEntity):
             return self.lift.fault
         # No fault field from KONE: the mode says whether it has tripped.
         code = mode_code(self.lift.mode)
-        return None if code is None else code == FAULT_MODE
+        return None if code is None else code in FAULT_MODES
 
 
 class InServiceSensor(KoneLiftEntity, BinarySensorEntity):
-    """On while the car is in normal service (mode 0); off for any other mode."""
+    """On while the car serves ordinary passengers (see IN_SERVICE_MODES)."""
 
     def __init__(self, hub, group, lift_id) -> None:
         super().__init__(hub, group, lift_id, "in_service")

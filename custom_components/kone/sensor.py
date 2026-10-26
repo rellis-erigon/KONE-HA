@@ -111,7 +111,7 @@ class ModeSensor(KoneLiftEntity, SensorEntity):
     """The lift's operating mode, by name; the code KONE sent is kept beside it."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = [*LIFT_MODES.values(), MODE_OTHER]
+    _attr_options = [*dict.fromkeys(LIFT_MODES.values()), MODE_OTHER]
 
     def __init__(self, hub, group, lift_id) -> None:
         super().__init__(hub, group, lift_id, "mode")

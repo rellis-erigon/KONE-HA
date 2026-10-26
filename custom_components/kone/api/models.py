@@ -292,31 +292,78 @@ def parse_topology(building_id: str, group_id: str, body: Any) -> Topology:
 # --------------------------------------------------------------------------
 
 
-#: `lift_mode` in Site Monitoring `status` events.
-#:
-#: UNVERIFIED: KONE's public examples type the mode as a bare number, and the
-#: schema that names the values is behind the API Portal login. Only 0 has
-#: been seen live (every lift of the sandbox, all in normal service). The
-#: names for 1-7 are a plausible reading relayed to us, not quoted from
-#: KONE, so the code is always kept beside the name, and anything that acts
-#: on the mode leans to the safe side (see IN_SERVICE_MODES). A code not
-#: listed reads as "other".
+#: `lift_mode` in Site Monitoring `status` events, from KONE's Elevator
+#: WebSocket API v2 schema (API Portal, "Possible values and their
+#: meanings"; -1 is "out of service"). Codes 24 and 25 are not listed
+#: there; any code not here reads as "other", with the code kept beside it.
 LIFT_MODES: dict[int, str] = {
+    -1: "out_of_service",
     0: "normal",
-    1: "out_of_service",
-    2: "inspection",
-    3: "fire_service",
-    4: "independent_service",
-    5: "priority_service",
-    6: "parking",
-    7: "fault",
+    1: "inspection",
+    2: "fireman_service",
+    3: "emergency_power",
+    4: "attendant",
+    5: "freight",
+    6: "vip_service",
+    7: "out_of_service",
+    8: "independent",
+    9: "hospital_emergency",
+    10: "hospital_bed",
+    11: "priority_call",
+    12: "priority_call_empty_car",
+    13: "separate_collective",
+    14: "failed",
+    15: "special_parking",
+    16: "abnormal_dispatch",
+    17: "landing_calls_disconnected",
+    18: "proxy_disconnected",
+    19: "safety_chain_break",
+    20: "earthquake",
+    21: "parked_doors_closed",
+    22: "car_hospital",
+    23: "reserve_dispatch",
+    26: "agv",
+    27: "wind_reduced_speed",
+    28: "storm_stopped",
+    29: "reduced_speed",
+    30: "evacuation",
+    31: "cleaning_pending",
+    32: "cleaning",
+    33: "maintenance_pending",
+    34: "invasion",
+    35: "setup_drive",
+    36: "substance_release",
+    37: "fire_detection",
+    38: "fire_machine_room",
+    39: "penthouse_visitor",
+    40: "priority_goods",
+    41: "recover",
+    42: "reserved",
+    43: "car_to_lobby",
+    44: "pet",
+    45: "empty_car",
+    46: "medical_emergency",
+    47: "retail",
+    48: "vip_low",
+    49: "vip_high",
+    50: "vip_only",
+    51: "pandemic",
+    52: "transformer",
+    53: "reserved",
+    54: "reserved",
+    55: "pit_inspection_failure",
+    56: "luggage",
+    57: "roof_access",
+    58: "pit_access",
 }
 MODE_OTHER = "other"
-#: Modes in which the car serves passengers' calls. Only the one seen live:
-#: while the table is unverified, any other code counts as out of service,
-#: so a wrong name can raise a false alarm but never hide a real one.
-IN_SERVICE_MODES = frozenset({0})
-FAULT_MODE = 7
+#: Modes in which the car serves ordinary passengers: normal, and the ones
+#: the schema says still drive normally (special parking: "it drives
+#: normally"; strong wind and reduced speed: running, only slower).
+IN_SERVICE_MODES = frozenset({0, 15, 27, 29})
+#: Modes that are a failure: "lift has failed and is unable to drive",
+#: a break in the safety chain, a pit inspection failure.
+FAULT_MODES = frozenset({14, 19, 55})
 
 
 def mode_code(mode: str | None) -> int | None:

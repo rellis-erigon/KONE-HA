@@ -114,17 +114,22 @@ def test_only_equipment_with_rtm_is_pollable():
     assert plain.equipment["ken:9"].pollable
 
 
-def test_lift_mode_names_and_the_safe_side():
+def test_lift_modes_as_kones_schema_names_them():
     from custom_components.kone.api.models import (
-        FAULT_MODE, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code,
+        FAULT_MODES, IN_SERVICE_MODES, LIFT_MODES, MODE_OTHER, mode_code,
     )
 
-    assert LIFT_MODES[0] == "normal" and LIFT_MODES.get(42, MODE_OTHER) == MODE_OTHER
-    # Only the mode seen live counts as in service while the table is unverified.
-    assert IN_SERVICE_MODES == {0}
-    assert FAULT_MODE == 7
-    assert mode_code("0") == 0 and mode_code(None) is None and mode_code("x") is None
+    # A few codes from KONE's schema, chosen where a guess had them wrong.
+    assert LIFT_MODES[0] == "normal"
+    assert LIFT_MODES[2] == "fireman_service"
+    assert LIFT_MODES[3] == "emergency_power"
+    assert LIFT_MODES[7] == LIFT_MODES[-1] == "out_of_service"
+    assert LIFT_MODES[14] == "failed" and LIFT_MODES[19] == "safety_chain_break"
+    assert LIFT_MODES.get(24, MODE_OTHER) == MODE_OTHER  # not in the schema
+    assert IN_SERVICE_MODES == {0, 15, 27, 29}
+    assert FAULT_MODES == {14, 19, 55}
+    assert mode_code("-1") == -1 and mode_code(None) is None and mode_code("x") is None
 
     state = LiftState()
-    apply_lift_event(state, "status", {"lift_mode": 3})
-    assert mode_code(state.mode) == 3
+    apply_lift_event(state, "status", {"lift_mode": 14})
+    assert mode_code(state.mode) in FAULT_MODES

@@ -5,7 +5,7 @@ Anyone with a KONE API Portal application can use it with their own client ID
 and secret. Add as many buildings as your application has been granted, and
 each one shows up as a device with its lift groups, lifts and equipment under it.
 
-> **Status: 0.4.0, tested against the live KONE sandbox** (dev.kone.com,
+> **Status: 0.4.1, tested against the live KONE sandbox** (dev.kone.com,
 > five virtual buildings): sign-in, the building inventory, call-giving
 > scopes, and live lift monitoring over the WebSocket (floor, direction,
 > motion, doors, mode) all work. Equipment status is the exception, see
@@ -34,28 +34,32 @@ never registers a webhook, so KONE never calls in.
 
 ### Lift mode
 
-`Mode` names KONE's `lift_mode` code, with the code itself in the `code`
-attribute. `In service` is on while the lift is in normal service.
+`Mode` names KONE's `lift_mode` code, as KONE's Elevator WebSocket API v2
+schema defines it, with the code itself in the `code` attribute. Among them:
 
-| Code | Mode | In service |
-|---|---|---|
-| 0 | Normal | on |
-| 1 | Out of service | off |
-| 2 | Inspection / maintenance | off |
-| 3 | Fire service | off |
-| 4 | Independent service | off |
-| 5 | Priority / emergency service | off |
-| 6 | Parking | off |
-| 7 | Fault / safety trip | off (and `Fault` on) |
-| other | Other | off |
+| Code | Mode | In service | Fault |
+|---|---|---|---|
+| 0 | Normal | on | |
+| 1 | Inspection drive | | |
+| 2 | Fireman's service | | |
+| 3 | Emergency power supply | | |
+| 7, −1 | Out of service | | |
+| 8 | Independent service | | |
+| 14 | Failed | | on |
+| 15 | Special parking (drives normally) | on | |
+| 19 | Safety chain break | | on |
+| 20 | Earthquake | | |
+| 27 | Strong wind, reduced speed | on | |
+| 28 | Storm wind, stopped | | |
+| 29 | Reduced speed | on | |
+| 30 | Evacuation | | |
+| 55 | Pit inspection failure | | on |
 
-> **Unverified.** KONE's schema that names these codes is behind the API
-> Portal login, and its public examples type the mode as a bare number. Only
-> `0` has been seen live. The names for 1–7 are a plausible reading, not
-> quoted from KONE. So the integration leans to the safe side: any code but
-> `0` counts as out of service, and `7` raises `Fault`. A wrong name can
-> cause a false alarm but cannot hide a real one. If you can see KONE's
-> schema and it differs, please open an issue.
+All of codes −1 and 0–58 are named (attendant, freight, VIP, hospital,
+cleaning, technician roof and pit access, and so on); a code the schema does
+not list reads as `Other`. **In service** is on only in the modes where the
+car still serves ordinary passengers. **Fault** is taken from the mode when
+KONE sends no fault field.
 
 ## Requirements
 
