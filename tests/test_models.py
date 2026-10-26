@@ -58,3 +58,38 @@ def test_hostname_with_scheme():
     assert tm.ws_base == "ws://127.0.0.1:8080"
     tm = TokenManager(None, "a", "b")
     assert tm.ws_base == "wss://dev.kone.com"
+
+
+def test_resources_as_the_live_inventory_writes_them():
+    """The live inventory: groups as `BUILDING:GROUP`, equipment as bare numbers.
+
+    Scopes need `group:BUILDING:GROUP` and `ken:NNN`; taking these as they
+    came made the token request fail (`group:B:B:1`, `rtm/123`).
+    """
+    res = parse_resources(
+        {
+            "buildings": [
+                {"id": "AbC123", "name": "Tower", "apiKens": ["555"],
+                 "groups": [{"id": "AbC123:1", "products": ["callgiving"]}]}
+            ],
+            "equipments": [{"id": "777", "name": " ", "products": ["rtm", "serviceinfo"]}],
+        }
+    )
+    assert res.buildings["AbC123"].groups == ["1"]
+    assert res.buildings["AbC123"].kens == ["ken:555"]
+    assert "ken:777" in res.equipment
+
+
+def test_scopes_from_options_written_either_way():
+    from custom_components.kone.hub import buildings_from_options, scopes_for
+
+    buildings = buildings_from_options(
+        {"buildings": {"AbC123": {"name": "Tower", "groups": ["AbC123:1", "2"], "kens": ["777", "ken:778"]}}}
+    )
+    assert scopes_for(buildings, False) == [
+        "application/inventory",
+        "callgiving/group:AbC123:1",
+        "callgiving/group:AbC123:2",
+        "rtm/ken:777",
+        "rtm/ken:778",
+    ]

@@ -106,16 +106,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool
         raise ConfigEntryNotReady(str(err)) from err
     entry.runtime_data = hub
 
+    # The device tree's upper levels, made here so their entities can name
+    # them by device id (`via_device_id`; `via_device` is deprecated).
     registry = dr.async_get(hass)
     for building in hub.buildings.values():
-        registry.async_get_or_create(
+        ident = building_device_identifier(entry.entry_id, building.building_id)
+        device = registry.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, building_device_identifier(entry.entry_id, building.building_id))},
+            identifiers={(DOMAIN, ident)},
             manufacturer=MANUFACTURER,
             model="Building",
             name=building.name,
             serial_number=building.building_id,
         )
+        hub.device_ids[ident] = device.id
+    for building_id, group_id in hub.groups:
+        ident = group_device_identifier(entry.entry_id, building_id, group_id)
+        device = registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, ident)},
+            manufacturer=MANUFACTURER,
+            model="Lift group",
+            name=f"{hub.buildings[building_id].name} group {group_id}",
+            via_device_id=hub.device_ids.get(
+                building_device_identifier(entry.entry_id, building_id)),
+        )
+        hub.device_ids[ident] = device.id
 
     if not hub.allow_control:
         _remove_control_entities(hass, entry)

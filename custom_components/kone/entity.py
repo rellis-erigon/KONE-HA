@@ -55,7 +55,7 @@ class KoneGroupEntity(KoneHubEntity):
             manufacturer=MANUFACTURER,
             model="Lift group",
             name=f"{building.name} group {group.group_id}",
-            via_device=(DOMAIN, building_device_identifier(entry_id, group.building_id)),
+            via_device_id=hub.device_ids.get(building_device_identifier(entry_id, group.building_id)),
         )
 
     @property
@@ -79,7 +79,7 @@ class KoneLiftEntity(KoneHubEntity):
             manufacturer=MANUFACTURER,
             model="Elevator",
             name=f"{building.name} {lift.name if lift else f'Lift {lift_id}'}",
-            via_device=(DOMAIN, group_device_identifier(entry_id, *self.group_key)),
+            via_device_id=hub.device_ids.get(group_device_identifier(entry_id, *self.group_key)),
         )
 
     @property
@@ -111,7 +111,9 @@ class KoneEquipmentEntity(CoordinatorEntity[EquipmentCoordinator]):
             model="Equipment",
             name=f"{building.name} {ken}",
             serial_number=ken.removeprefix("ken:"),
-            via_device=(DOMAIN, building_device_identifier(entry_id, building_id)),
+            via_device_id=coordinator.hub.device_ids.get(
+                building_device_identifier(entry_id, building_id)
+            ),
         )
 
     @property

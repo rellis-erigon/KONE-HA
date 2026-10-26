@@ -27,11 +27,28 @@ def prefixed_building_id(value: str) -> str:
 
 
 def split_group_id(value: str) -> tuple[str, str] | None:
-    """`group:123:1` -> (`123`, `1`); anything else -> None."""
-    parts = str(value).split(":")
+    """`group:123:1` or `123:1` -> (`123`, `1`); anything else -> None.
+
+    The live inventory lists a building's groups as `BUILDING:GROUP`, with
+    no `group:` prefix; scopes and the docs write `group:BUILDING:GROUP`.
+    """
+    parts = str(value).strip().split(":")
     if len(parts) == 3 and parts[0] == "group":
         return parts[1], parts[2]
+    if len(parts) == 2 and all(parts):
+        return parts[0], parts[1]
     return None
+
+
+def ken_id(value: str) -> str:
+    """`123` or `ken:123` -> `ken:123`.
+
+    The live inventory lists equipment as bare numbers, but scopes
+    (`rtm/ken:123`) and the Equipment Status API (`equipmentIds` must match
+    `^ken:.+$`) both need the prefix.
+    """
+    value = str(value).strip()
+    return value if value.startswith("ken:") else f"ken:{value}"
 
 
 # --------------------------------------------------------------------------
@@ -76,6 +93,7 @@ def parse_resources(body: Any) -> Resources:
         building = res.buildings.setdefault(bid, BuildingResource(bid))
         building.name = item.get("name") or item.get("description") or building.name
         for ken in item.get("apiKens") or item.get("kens") or []:
+            ken = ken_id(ken)
             if ken not in building.kens:
                 building.kens.append(ken)
         for group in item.get("groups") or []:
@@ -91,7 +109,7 @@ def parse_resources(body: Any) -> Resources:
             item = {"id": item}
         if not isinstance(item, dict) or not item.get("id"):
             continue
-        ken = item["id"]
+        ken = ken_id(item["id"])
         bid = item.get("buildingId") or item.get("building")
         res.equipment[ken] = EquipmentResource(
             ken=ken,

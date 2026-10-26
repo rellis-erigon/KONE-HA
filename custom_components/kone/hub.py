@@ -43,7 +43,7 @@ from .api import (
     parse_topology,
     service_info_scope,
 )
-from .api.models import bare_building_id
+from .api.models import bare_building_id, ken_id, split_group_id
 from .const import (
     B_GROUPS,
     B_KENS,
@@ -98,11 +98,23 @@ def buildings_from_options(options: dict[str, Any]) -> dict[str, BuildingConfig]
         out[bid] = BuildingConfig(
             building_id=bid,
             name=conf.get(B_NAME) or f"Building {bid}",
-            groups=[str(g) for g in conf.get(B_GROUPS) or []],
+            groups=[_group_of(bid, g) for g in conf.get(B_GROUPS) or []],
             terminal=int(conf.get(B_TERMINAL) or DEFAULT_TERMINAL),
-            kens=list(conf.get(B_KENS) or []),
+            kens=[ken_id(k) for k in conf.get(B_KENS) or []],
         )
     return out
+
+
+def _group_of(building_id: str, value: object) -> str:
+    """A group as its own number, however it was written.
+
+    The inventory, and so the form's default, writes `BUILDING:GROUP`; the
+    scope and the WebSocket want the group alone, under its building.
+    """
+    split = split_group_id(str(value))
+    if split is not None and split[0] == building_id:
+        return split[1]
+    return str(value).strip()
 
 
 def scopes_for(
@@ -147,6 +159,8 @@ class KoneHub:
             read_only=not self.allow_control,
         )
         self.groups: dict[GroupKey, GroupState] = {}
+        # Device registry ids of the building and group devices, by identifier.
+        self.device_ids: dict[str, str] = {}
         self.equipment: EquipmentCoordinator | None = None
         self._ws_task: asyncio.Task | None = None
 
@@ -380,7 +394,7 @@ class EquipmentCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ):
                 try:
                     for item in await fetch(kens):
-                        ken = item.get("equipmentId")
+                        ken = ken_id(item["equipmentId"]) if item.get("equipmentId") else None
                         if ken in out:
                             out[ken][kind] = item
                 except KoneAuthError:
