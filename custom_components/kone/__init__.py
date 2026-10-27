@@ -133,6 +133,9 @@ async def _serve_card(hass: HomeAssistant) -> None:
     # No long cache: a new card must reach browsers on their next load.
     await hass.http.async_register_static_paths([StaticPathConfig(FRONTEND_URL, str(folder), False)])
     add_extra_js_url(hass, f"{FRONTEND_URL}/{CARD_FILE}?v={tag}")
+    # Browsers on Home Assistant's legacy build (older iPads) load no
+    # modules from here; a classic script imports the card for them.
+    add_extra_js_url(hass, f"{FRONTEND_URL}/legacy-loader.js?v={tag}", es5=True)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: KoneConfigEntry) -> bool:

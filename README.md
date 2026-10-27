@@ -222,6 +222,10 @@ leave out `to_floor` for a landing call) to use them.
 - **Equipment offered:** the setup only offers equipment the inventory lists
   with the `rtm` product (Equipment Status). A building's own number under
   `apiKens` is not granted `rtm` on the sandbox, so it is not offered.
+- **"Configuration error" in place of the card on an iPad or iPhone:**
+  Home Assistant 2026.10 gives browsers before iOS 18.1 its legacy build,
+  which loaded no card from an integration before 0.5.2. Update, then
+  reload the page.
 - **Floor shows a number instead of a label:** the floor index wasn't in
   the group's topology. Press **Refresh floors**, and if it still happens,
   include diagnostics in an issue.
