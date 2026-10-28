@@ -54,7 +54,7 @@ class KoneHubEntity(Entity):
 
     @property
     def available(self) -> bool:
-        return self.hub.ws.connected
+        return self.hub.ws.available
 
 
 class KoneGroupEntity(KoneHubEntity):

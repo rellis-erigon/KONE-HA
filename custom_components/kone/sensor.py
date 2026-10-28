@@ -59,6 +59,10 @@ async def async_setup_entry(
 class FloorSensor(KoneLiftEntity, SensorEntity):
     """The landing the car is at, by its button label where known."""
 
+    # Fixed per lift, or changing with every event: kept out of the
+    # recorder, which otherwise stores a new attributes row each time.
+    _unrecorded_attributes = frozenset({"floors", "last_update", "lift_name"})
+
     def __init__(self, hub, group, lift_id) -> None:
         super().__init__(hub, group, lift_id, "floor")
         self._attr_icon = "mdi:elevator"
@@ -141,6 +145,8 @@ class ModeSensor(KoneLiftEntity, SensorEntity):
 
 
 class LastCallSensor(KoneGroupEntity, SensorEntity):
+    _unrecorded_attributes = frozenset({"floors", "actions", "raw"})
+
     def __init__(self, hub, group) -> None:
         super().__init__(hub, group, "last_call")
         self._attr_icon = "mdi:gesture-tap-button"

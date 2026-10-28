@@ -110,7 +110,8 @@ class ConnectedSensor(KoneGroupEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.hub.ws.connected
+        # Not the hourly token reconnect: see KoneWebSocket.available.
+        return self.hub.ws.available
 
 
 class EntrapmentSensor(KoneEquipmentEntity, BinarySensorEntity):

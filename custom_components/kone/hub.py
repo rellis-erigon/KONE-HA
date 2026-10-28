@@ -24,6 +24,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -44,6 +45,7 @@ from .api import (
     parse_topology,
     service_info_scope,
 )
+from .api.websocket import OUTAGE_GRACE
 from .api.models import bare_building_id, ken_id, split_group_id
 from .const import (
     B_GROUPS,
@@ -151,6 +153,8 @@ class KoneHub:
             scopes_for(self.buildings, self.service_info),
         )
         self.rest = KoneRestClient(session, self.tokens)
+        self._grace_check: Any = None
+        """Cancels the look at availability after a drop's grace period."""
         self.ws = KoneWebSocket(
             session,
             self.tokens,
@@ -216,6 +220,9 @@ class KoneHub:
             await self.equipment.async_refresh()
 
     async def async_stop(self) -> None:
+        if self._grace_check is not None:
+            self._grace_check()
+            self._grace_check = None
         await self.ws.stop()
         if self._ws_task is not None:
             self._ws_task.cancel()
@@ -246,6 +253,19 @@ class KoneHub:
     @callback
     def _on_ws_state(self, connected: bool) -> None:
         self._notify()
+        if self._grace_check is not None:
+            self._grace_check()
+            self._grace_check = None
+        if not connected:
+            # Still available for now; look again once the grace is over.
+            @callback
+            def _recheck(_now) -> None:
+                self._grace_check = None
+                self._notify()
+
+            self._grace_check = async_call_later(
+                self.hass, OUTAGE_GRACE + 1, _recheck
+            )
 
     def _group_for(self, msg: dict[str, Any]) -> GroupState | None:
         bid = msg.get("buildingId")

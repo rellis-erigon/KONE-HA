@@ -222,6 +222,10 @@ leave out `to_floor` for a landing call) to use them.
 - **Equipment offered:** the setup only offers equipment the inventory lists
   with the `rtm` product (Equipment Status). A building's own number under
   `apiKens` is not granted `rtm` on the sandbox, so it is not offered.
+- **Every lift unavailable for a moment once an hour (before 0.5.3):** the
+  WebSocket is reopened before each hourly token expires. Lifts now stay
+  available through a drop of up to a minute, and the *Connected* sensor
+  only turns off for a real outage.
 - **"Configuration error" in place of the card on an iPad or iPhone:**
   Home Assistant 2026.10 gives browsers before iOS 18.1 its legacy build,
   which loaded no card from an integration before 0.5.2. Update, then

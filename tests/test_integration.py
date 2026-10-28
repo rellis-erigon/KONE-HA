@@ -169,6 +169,27 @@ async def test_reconnects_and_resubscribes(hass: HomeAssistant, kone, make_entry
     assert subs_after > subs_before
 
 
+async def test_a_short_drop_does_not_take_the_lifts_offline(
+    hass: HomeAssistant, kone, make_entry, monkeypatch
+) -> None:
+    # The connection is reopened every hour for a new token; that second
+    # must not show every lift going unavailable.
+    from custom_components.kone.api import websocket
+
+    entry = await _setup(hass, kone, make_entry)
+    hub = entry.runtime_data
+    for ws in list(kone.sockets):
+        await ws.close()
+    await _settle(hass)
+    assert not hub.ws.connected
+    assert hass.states.get(FLOOR_A).state != "unavailable"
+    # A drop longer than the grace does show.
+    monkeypatch.setattr(websocket, "OUTAGE_GRACE", 0.0)
+    hub._notify()
+    await hass.async_block_till_done()
+    assert hass.states.get(FLOOR_A).state == "unavailable"
+
+
 async def test_unload(hass: HomeAssistant, kone, make_entry) -> None:
     entry = await _setup(hass, kone, make_entry)
     assert await hass.config_entries.async_unload(entry.entry_id)

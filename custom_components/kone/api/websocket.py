@@ -42,6 +42,9 @@ SUBPROTOCOL = "koneapi"
 #: KONE caps a monitoring subscription at 300 s; renew this long before.
 MONITOR_DURATION = 300
 MONITOR_RENEW_MARGIN = 30
+#: Seconds a dropped connection is allowed before the lifts read
+#: unavailable; the hourly reconnect for a new token takes about one.
+OUTAGE_GRACE = 60.0
 
 #: Default monitoring topics for every lift in a group.
 DEFAULT_SUBTOPICS = ("+/position", "+/doors", "+/status", "+/next_stop_eta")
@@ -99,6 +102,8 @@ class KoneWebSocket:
         self._connected = asyncio.Event()
         self._subs_changed = asyncio.Event()
         self._stopping = False
+        #: When the connection last dropped; None while up or never up.
+        self._down_since: float | None = None
         #: Last messages seen, newest last, for diagnostics.
         self.recent: deque[dict] = deque(maxlen=50)
 
@@ -109,6 +114,21 @@ class KoneWebSocket:
     @property
     def connected(self) -> bool:
         return self._connected.is_set()
+
+    @property
+    def available(self) -> bool:
+        """Connected, or dropped less than OUTAGE_GRACE ago.
+
+        The connection is closed and reopened every hour for a new token,
+        and a lift that goes unavailable for that one second is noise in
+        every history, logbook and automation that watches it.
+        """
+        if self.connected:
+            return True
+        return (
+            self._down_since is not None
+            and time.monotonic() - self._down_since < OUTAGE_GRACE
+        )
 
     async def wait_connected(self, timeout: float) -> None:
         try:
@@ -165,6 +185,7 @@ class KoneWebSocket:
             raise KoneConnectionError(str(err)) from err
 
         _LOGGER.debug("KONE WebSocket connected")
+        self._down_since = None
         self._connected.set()
         if self._on_state:
             self._on_state(True)
@@ -225,6 +246,8 @@ class KoneWebSocket:
     def _set_disconnected(self) -> None:
         was = self._connected.is_set()
         self._connected.clear()
+        if was:
+            self._down_since = time.monotonic()
         for pending in self._pending.values():
             if not pending.future.done():
                 pending.future.set_exception(KoneConnectionError("WebSocket closed"))
